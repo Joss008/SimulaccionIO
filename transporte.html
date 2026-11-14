@@ -1,0 +1,1705 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Simulador de Transporte</title>
+<style>
+:root{
+  --bg:#f4f6f9; --panel:#ffffff; --text:#0f172a; --muted:#64748b; --border:#e2e8f0;
+  --accent:#4f46e5; --accent-dark:#4338ca; --accent-soft:#eef2ff;
+  --plant:#10b981; --plant-bg:#ecfdf5; --plant-dark:#047857;
+  --dest:#3b82f6; --dest-bg:#eff6ff; --dest-dark:#1d4ed8;
+  --hub:#f59e0b; --hub-bg:#fffbeb; --hub-dark:#b45309;
+  --good:#10b981; --warn:#f59e0b; --bad:#ef4444;
+  --shadow:0 1px 2px rgba(15,23,42,.06),0 4px 14px rgba(15,23,42,.06);
+  --shadow-lg:0 8px 30px rgba(15,23,42,.14);
+  --radius:12px;
+  font-family:system-ui,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden}
+body{background:var(--bg);color:var(--text);font-size:14px}
+
+/* ===== Top bar ===== */
+.topbar{height:56px;background:var(--panel);border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;padding:0 16px;position:relative;z-index:30}
+.brand{display:flex;align-items:center;gap:10px;min-width:0}
+.brand-icon{width:32px;height:32px;border-radius:9px;background:var(--accent);
+  display:grid;place-items:center;flex:none}
+.brand-icon svg{width:18px;height:18px;stroke:#fff;fill:none;stroke-width:2}
+.brand h1{font-size:15px;font-weight:700;letter-spacing:-.2px;white-space:nowrap}
+.brand-sub{font-size:11px;color:var(--muted);white-space:nowrap}
+.top-actions{display:flex;gap:8px;align-items:center}
+.btn{border:1px solid var(--border);background:var(--panel);color:var(--text);
+  font:inherit;font-weight:600;font-size:13px;padding:8px 14px;border-radius:9px;
+  cursor:pointer;display:inline-flex;align-items:center;gap:7px;transition:.15s}
+.btn:hover{background:#f8fafc;border-color:#cbd5e1}
+.btn:active{transform:translateY(1px)}
+.btn.ghost{background:transparent}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff;box-shadow:0 2px 8px rgba(79,70,229,.35)}
+.btn.primary:hover{background:var(--accent-dark);border-color:var(--accent-dark)}
+.btn.primary svg{width:14px;height:14px;fill:#fff}
+.btn.primary.running{opacity:.7;pointer-events:none}
+.btn.danger{color:var(--bad);border-color:#fecaca}
+.btn.danger:hover{background:#fef2f2}
+
+/* ===== Workspace ===== */
+.workspace{display:flex;height:calc(100% - 56px);position:relative}
+.palette{width:72px;background:var(--panel);border-right:1px solid var(--border);
+  display:flex;flex-direction:column;align-items:center;padding:10px 0;gap:6px;z-index:20}
+.tool{width:56px;height:52px;border:1px solid transparent;background:transparent;border-radius:10px;
+  cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
+  color:var(--muted);font-size:9px;font-weight:600;transition:.15s;font-family:inherit}
+.tool svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.tool:hover{background:#f1f5f9;color:var(--text)}
+.tool.active{background:var(--accent-soft);color:var(--accent);border-color:#c7d2fe}
+.tool.plant.active,.tool.plant:hover{background:var(--plant-bg);color:var(--plant-dark);border-color:#a7f3d0}
+.tool.dest.active,.tool.dest:hover{background:var(--dest-bg);color:var(--dest-dark);border-color:#bfdbfe}
+.tool.hub.active,.tool.hub:hover{background:var(--hub-bg);color:var(--hub-dark);border-color:#fde68a}
+.palette .sep{width:36px;height:1px;background:var(--border);margin:4px 0}
+
+/* ===== Canvas ===== */
+.canvas-area{flex:1;position:relative;overflow:hidden;
+  background-color:#f8fafc;
+  background-image:radial-gradient(#cbd5e1 1.2px,transparent 1.2px);
+  background-size:24px 24px;cursor:grab}
+.canvas-area.panning{cursor:grabbing}
+.canvas-area.tool-connect{cursor:crosshair}
+.canvas-area.tool-delete{cursor:not-allowed}
+#svg{position:absolute;inset:0;width:100%;height:100%;display:block}
+.zoom-controls{position:absolute;right:14px;bottom:14px;display:flex;flex-direction:column;gap:6px;z-index:10}
+.zoom-controls button{width:34px;height:34px;border-radius:9px;border:1px solid var(--border);
+  background:var(--panel);box-shadow:var(--shadow);cursor:pointer;font-size:15px;font-weight:700;
+  color:var(--muted);display:grid;place-items:center;font-family:inherit}
+.zoom-controls button:hover{color:var(--text);background:#f8fafc}
+.hint{position:absolute;left:50%;top:14px;transform:translateX(-50%);
+  background:rgba(15,23,42,.82);color:#fff;font-size:12px;padding:7px 14px;border-radius:99px;
+  pointer-events:none;transition:opacity .4s;z-index:10;white-space:nowrap;backdrop-filter:blur(4px)}
+.hint.hidden{opacity:0}
+.toast{position:absolute;left:50%;top:60px;transform:translateX(-50%) translateY(-8px);
+  background:#fff;border:1px solid var(--border);border-left:4px solid var(--accent);
+  padding:10px 16px;border-radius:10px;box-shadow:var(--shadow-lg);font-size:13px;font-weight:600;
+  opacity:0;pointer-events:none;transition:.25s;z-index:40;max-width:440px}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.toast.error{border-left-color:var(--bad);color:#991b1b}
+.toast.warn{border-left-color:var(--warn);color:#92400e}
+.toast.ok{border-left-color:var(--good);color:#065f46}
+
+/* ===== Nodes & edges (SVG) ===== */
+.node{cursor:grab}
+.node.dragging{cursor:grabbing}
+.node .n-bg{stroke-width:1.5;transition:filter .15s}
+.node:hover .n-bg{filter:brightness(.985)}
+.node.selected .n-bg{stroke-width:2.5;stroke:var(--accent)!important}
+.node .n-name{font-size:13px;font-weight:700;fill:var(--text)}
+.node .n-sub{font-size:11px;fill:var(--muted)}
+.node .n-sub.ok{fill:#047857;font-weight:700}
+.node .n-sub.warn{fill:#b45309;font-weight:700}
+@keyframes fadein{from{opacity:0}to{opacity:1}}
+.edge .alloc-in{animation:fadein .45s backwards}
+.node .n-ico{stroke-width:1.7;fill:none;stroke-linecap:round;stroke-linejoin:round}
+.node .n-check{font-size:10px;font-weight:700}
+.edge{cursor:pointer}
+.edge .e-line{fill:none;stroke:#94a3b8;stroke-width:2;transition:stroke .15s,stroke-width .15s}
+.edge:hover .e-line{stroke:#64748b;stroke-width:2.6}
+.edge.selected .e-line{stroke:var(--accent);stroke-width:3}
+.edge.dim .e-line{opacity:.35}
+.edge .e-pill{fill:#fff;stroke:var(--border);stroke-width:1}
+.edge.selected .e-pill{stroke:var(--accent)}
+.edge .e-cost{font-size:11px;font-weight:700;fill:#334155;text-anchor:middle;dominant-baseline:central}
+.edge .e-alloc{font-size:11px;font-weight:800;fill:#065f46;text-anchor:middle;dominant-baseline:central}
+.edge .e-alloc-bg{fill:#d1fae5;stroke:#6ee7b7;stroke-width:1}
+.edge.active .e-line{stroke:var(--good);stroke-width:3;stroke-dasharray:11 7;animation:flowdash .55s linear infinite}
+@keyframes flowdash{to{stroke-dashoffset:-18}}
+.edge.dimmed{opacity:.3}
+.edge.hubleg .e-line{stroke:#d97706;stroke-dasharray:5 4}
+.edge.hubleg.active .e-line{stroke:var(--good);stroke-dasharray:11 7;animation:flowdash .55s linear infinite}
+.connect-src .n-bg{stroke:var(--accent)!important;stroke-width:2.5!important;stroke-dasharray:6 4}
+
+/* ===== Side panel ===== */
+.side{width:308px;background:var(--panel);border-left:1px solid var(--border);
+  overflow-y:auto;z-index:20;flex:none}
+.side-head{padding:14px 16px 10px;border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;gap:8px;position:sticky;top:0;background:var(--panel);z-index:2}
+.side-head h2{font-size:12px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:var(--muted)}
+.side-body{padding:14px 16px 24px}
+.badge{font-size:10px;font-weight:800;padding:3px 8px;border-radius:99px;letter-spacing:.3px}
+.badge.plant{background:var(--plant-bg);color:var(--plant-dark)}
+.badge.dest{background:var(--dest-bg);color:var(--dest-dark)}
+.badge.hub{background:var(--hub-bg);color:var(--hub-dark)}
+.field{margin-bottom:12px}
+.field label{display:block;font-size:11px;font-weight:700;color:var(--muted);margin-bottom:5px;letter-spacing:.3px}
+.field input,.field select{width:100%;border:1px solid var(--border);border-radius:9px;
+  padding:9px 11px;font:inherit;font-size:14px;background:#fff;color:var(--text);transition:.15s}
+.field input:focus,.field select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.field .row{display:flex;gap:8px}
+.field .row .field{flex:1;margin-bottom:0}
+.side-actions{display:flex;gap:8px;margin-top:16px}
+.side-actions .btn{flex:1;justify-content:center}
+.muted-note{font-size:12px;color:var(--muted);line-height:1.5;background:#f8fafc;
+  border:1px dashed var(--border);border-radius:10px;padding:10px 12px}
+.empty-state{text-align:center;padding:30px 10px;color:var(--muted)}
+.empty-state svg{width:44px;height:44px;stroke:#cbd5e1;fill:none;stroke-width:1.5;margin-bottom:10px}
+.empty-state p{font-size:13px;line-height:1.55}
+
+/* ===== Data matrix ===== */
+.matrix-wrap{overflow-x:auto;margin:0 -4px}
+table.matrix{border-collapse:separate;border-spacing:0;width:100%;font-size:13px}
+table.matrix th,table.matrix td{padding:5px 4px;text-align:center}
+table.matrix th{font-size:10px;font-weight:800;color:var(--muted);letter-spacing:.4px;text-transform:uppercase}
+table.matrix th.rh{text-align:left;padding-left:2px}
+table.matrix td input{width:46px;text-align:center;border:1px solid transparent;border-radius:7px;
+  padding:6px 3px;font:inherit;font-size:13px;font-weight:600;background:transparent;color:var(--text)}
+table.matrix td input:hover{background:#f8fafc;border-color:var(--border)}
+table.matrix td input:focus{outline:none;background:#fff;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+table.matrix td input.fixed{background:#f1f5f9;font-weight:700;color:#334155}
+table.matrix .row-label{font-weight:800;font-size:12px;text-align:left;padding-left:2px}
+table.matrix .row-label small{display:block;font-weight:600;color:var(--muted);font-size:10px}
+table.matrix td.blocked button{width:46px;border:1px dashed #cbd5e1;background:#f8fafc;color:#94a3b8;
+  border-radius:7px;padding:6px 0;font:inherit;font-size:13px;cursor:pointer}
+table.matrix td.blocked button:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-soft)}
+table.matrix tfoot td{font-size:11px;font-weight:800;color:var(--muted);padding-top:8px}
+table.matrix tfoot td.bal-ok{color:var(--good)}
+table.matrix tfoot td.bal-bad{color:var(--bad)}
+table.matrix .tot{font-weight:800;font-size:12px;color:#334155}
+table.matrix .cell-del{position:relative}
+table.matrix .cell-del .x{position:absolute;top:0;right:0;font-size:9px;color:#cbd5e1;cursor:pointer;
+  opacity:0;transition:.15s;line-height:1}
+table.matrix tr:hover .cell-del .x{opacity:1}
+table.matrix .cell-del .x:hover{color:var(--bad)}
+.mtx-legend{display:flex;gap:12px;margin-top:10px;font-size:10.5px;color:var(--muted);flex-wrap:wrap}
+.mtx-legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:4px;vertical-align:-1px}
+
+/* ===== Results ===== */
+.results{position:absolute;left:72px;right:308px;bottom:0;height:0;overflow:hidden;
+  background:var(--panel);border-top:1px solid var(--border);box-shadow:0 -8px 30px rgba(15,23,42,.1);
+  transition:height .35s cubic-bezier(.4,0,.2,1);z-index:25}
+.results.open{height:304px}
+.results-inner{height:304px;overflow-y:auto;padding:14px 20px 20px}
+.results-close{position:absolute;right:12px;top:10px;border:none;background:#f1f5f9;
+  width:26px;height:26px;border-radius:7px;cursor:pointer;color:var(--muted);font-size:14px;font-weight:700}
+.results-close:hover{background:#e2e8f0;color:var(--text)}
+.results h3{font-size:11px;font-weight:800;letter-spacing:.7px;text-transform:uppercase;color:var(--muted);margin-bottom:10px}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px}
+.kpi{border:1px solid var(--border);border-radius:12px;padding:11px 14px;background:#fff;transition:.2s}
+.kpi .k-label{font-size:10.5px;font-weight:700;color:var(--muted);letter-spacing:.3px;margin-bottom:4px;display:flex;align-items:center;gap:5px}
+.kpi .k-value{font-size:25px;font-weight:800;letter-spacing:-.8px;font-variant-numeric:tabular-nums}
+.kpi .k-sub{font-size:11px;color:var(--muted);margin-top:2px}
+.kpi.best{background:linear-gradient(135deg,#ecfdf5,#f0fdfa);border-color:#a7f3d0}
+.kpi.best .k-value{color:#047857}
+.kpi.best .k-label{color:#047857}
+.kpi.save{background:linear-gradient(135deg,#eef2ff,#f5f3ff);border-color:#c7d2fe}
+.kpi.save .k-value{color:var(--accent)}
+.kpi.na .k-value{color:#cbd5e1;font-size:18px}
+.res-cols{display:grid;grid-template-columns:1.15fr .85fr;gap:16px;align-items:start}
+.bars{display:flex;flex-direction:column;gap:8px;margin-bottom:12px}
+.bar-row{display:grid;grid-template-columns:130px 1fr 64px;gap:10px;align-items:center;font-size:12px}
+.bar-row .b-name{font-weight:700;color:#334155}
+.bar-track{height:18px;background:#f1f5f9;border-radius:6px;overflow:hidden}
+.bar-fill{height:100%;border-radius:6px;width:0;transition:width .8s cubic-bezier(.2,.8,.2,1);
+  background:linear-gradient(90deg,#818cf8,#6366f1);display:flex;align-items:center;justify-content:flex-end;
+  padding-right:6px;color:#fff;font-size:9.5px;font-weight:800;min-width:0}
+.bar-fill.good{background:linear-gradient(90deg,#34d399,#059669)}
+.bar-row .b-val{font-weight:800;text-align:right;font-variant-numeric:tabular-nums}
+.tabs{display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap}
+.tab{border:1px solid var(--border);background:#fff;border-radius:8px;padding:6px 12px;
+  font:inherit;font-size:12px;font-weight:700;color:var(--muted);cursor:pointer;transition:.15s}
+.tab:hover{border-color:#cbd5e1;color:var(--text)}
+.tab.active{background:var(--accent);border-color:var(--accent);color:#fff}
+table.alloc{border-collapse:collapse;width:100%;font-size:13px}
+table.alloc th,table.alloc td{border:1px solid var(--border);padding:6px 9px;text-align:center}
+table.alloc th{background:#f8fafc;font-size:11px;font-weight:800;color:var(--muted);letter-spacing:.3px}
+table.alloc td.name{font-weight:800;background:#f8fafc;font-size:12px;text-align:left}
+table.alloc td.v{font-variant-numeric:tabular-nums;font-weight:600}
+table.alloc td.v.pos{background:#ecfdf5;color:#065f46;font-weight:800}
+table.alloc tr.sum td{background:#f1f5f9;font-weight:800;font-size:12px}
+table.alloc td.dummy{opacity:.55;font-style:italic}
+.hub-card{border:1px solid #fde68a;background:var(--hub-bg);border-radius:11px;padding:11px 13px;margin-top:12px}
+.hub-card h4{font-size:11px;font-weight:800;color:var(--hub-dark);letter-spacing:.4px;margin-bottom:6px;display:flex;align-items:center;gap:6px}
+.hub-card p{font-size:12.5px;color:#92400e;font-weight:600;line-height:1.5}
+.hub-card .ok{color:#047857;font-weight:800}
+details.more{margin-top:12px;border:1px solid var(--border);border-radius:11px;overflow:hidden}
+details.more summary{cursor:pointer;padding:9px 13px;font-size:12px;font-weight:800;color:#334155;
+  background:#f8fafc;list-style:none;display:flex;align-items:center;gap:7px;user-select:none}
+details.more summary::-webkit-details-marker{display:none}
+details.more summary::before{content:"▸";color:var(--muted);transition:.15s;display:inline-block}
+details.more[open] summary::before{transform:rotate(90deg)}
+details.more .more-body{padding:11px 13px}
+.log{font-family:ui-monospace,Consolas,monospace;font-size:11.5px;line-height:1.75;color:#334155;max-height:150px;overflow:auto}
+.log .lg-head{font-weight:800;color:var(--accent);margin-top:6px}
+.log .lg-head:first-child{margin-top:0}
+.log .lg-good{color:#047857;font-weight:700}
+.log .lg-warn{color:#b45309}
+.formula{font-family:ui-monospace,Consolas,monospace;font-size:12px;line-height:1.8;color:#334155;
+  max-height:170px;overflow:auto;white-space:pre;user-select:text}
+.formula .fx{color:var(--accent);font-weight:700}
+.notice{display:flex;gap:8px;align-items:flex-start;background:#fffbeb;border:1px solid #fde68a;
+  border-radius:10px;padding:9px 12px;font-size:12.5px;color:#92400e;font-weight:600;line-height:1.5;margin-bottom:12px}
+.notice.err{background:#fef2f2;border-color:#fecaca;color:#991b1b}
+.notice svg{width:15px;height:15px;flex:none;margin-top:1px;stroke:currentColor;fill:none;stroke-width:2}
+
+@media (max-width:1100px){
+  .side{width:260px}
+  .results{right:260px}
+  .kpis{grid-template-columns:repeat(2,1fr)}
+  .res-cols{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <div class="brand-icon">
+      <svg viewBox="0 0 24 24"><circle cx="5.5" cy="18" r="2.5"/><circle cx="18.5" cy="6" r="2.5"/><path d="M7.5 16.5 16.5 7.5"/><path d="M5.5 15.5V9a3 3 0 0 1 3-3h4"/></svg>
+    </div>
+    <div>
+      <h1>Simulador de Transporte</h1>
+      <span class="brand-sub">Minimizar costo · Esquina noroeste · Costo mínimo · MODI</span>
+    </div>
+  </div>
+  <div class="top-actions">
+    <button class="btn ghost" id="btnExample" title="Cargar el caso de la presentación">Ejemplo</button>
+    <button class="btn ghost" id="btnClear" title="Borrar todo">Limpiar</button>
+    <button class="btn primary" id="btnRun" title="Calcular solución (Ctrl+Enter)">
+      <svg viewBox="0 0 24 24"><path d="M7 4.5v15l13-7.5z"/></svg>
+      <span>Run</span>
+    </button>
+  </div>
+</header>
+
+<div class="workspace">
+  <nav class="palette">
+    <button class="tool active" data-tool="select" title="Seleccionar y arrastrar">
+      <svg viewBox="0 0 24 24"><path d="M5 3l14 8.5-6.2 1.4L10 20z"/></svg><span>Mover</span>
+    </button>
+    <button class="tool" data-tool="connect" title="Clic en origen, luego en destino">
+      <svg viewBox="0 0 24 24"><circle cx="6" cy="18" r="2.5"/><circle cx="18" cy="6" r="2.5"/><path d="M8 16l8-8"/></svg><span>Ruta</span>
+    </button>
+    <button class="tool" data-tool="delete" title="Clic para borrar nodo o ruta">
+      <svg viewBox="0 0 24 24"><path d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2M6 7l1 13a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-13"/></svg><span>Borrar</span>
+    </button>
+    <div class="sep"></div>
+    <button class="tool plant" id="addPlant" title="Agregar planta (oferta)">
+      <svg viewBox="0 0 24 24"><path d="M3 21V10l5 3V10l5 3V7l6 4v10z"/><path d="M3 21h18"/></svg><span>Planta</span>
+    </button>
+    <button class="tool dest" id="addDest" title="Agregar destino (demanda)">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3.4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg><span>Destino</span>
+    </button>
+    <button class="tool hub" id="addHub" title="Agregar hub intermedio (balance de flujo)">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="2.6"/><circle cx="5" cy="6" r="2.2"/><circle cx="19" cy="6" r="2.2"/><circle cx="5" cy="18" r="2.2"/><circle cx="19" cy="18" r="2.2"/><path d="M6.6 7.6l3.7 3M17.4 7.6l-3.7 3M6.6 16.4l3.7-3M17.4 16.4l-3.7-3"/></svg><span>Hub</span>
+    </button>
+  </nav>
+
+  <div class="canvas-area" id="canvasArea">
+    <svg id="svg" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0 1.5 L9 5 L0 8.5 z" fill="#94a3b8"/>
+        </marker>
+        <marker id="arrowSel" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0 1.5 L9 5 L0 8.5 z" fill="#4f46e5"/>
+        </marker>
+        <marker id="arrowGood" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0 1.5 L9 5 L0 8.5 z" fill="#10b981"/>
+        </marker>
+      </defs>
+      <g id="world">
+        <g id="edgesLayer"></g>
+        <g id="nodesLayer"></g>
+      </g>
+    </svg>
+    <div class="zoom-controls">
+      <button id="zoomIn" title="Acercar">+</button>
+      <button id="zoomOut" title="Alejar">−</button>
+      <button id="zoomFit" title="Ajustar vista">⌂</button>
+    </div>
+    <div class="hint" id="hint">Arrastra los nodos · usa los botones de la izquierda para agregar · edita los datos en el panel derecho</div>
+    <div class="toast" id="toast"></div>
+  </div>
+
+  <aside class="side" id="side"></aside>
+
+  <section class="results" id="results">
+    <button class="results-close" id="resultsClose" title="Cerrar">✕</button>
+    <div class="results-inner" id="resultsInner"></div>
+  </section>
+</div>
+
+<script>
+// === SOLVER START ===
+"use strict";
+const EPS = 1e-9;
+
+function sum(a){ return a.reduce((s,v)=>s+v,0); }
+function cloneMatrix(x){ return x.map(r=>r.slice()); }
+
+/* Construye la matriz de costos/capacidades del estado del lienzo.
+   Ruta directa: planta -> destino. Ruta vía hub: c(planta,hub)+c(hub,destino) (mínimo entre hubs).
+   Retorna { plants, dests, cost, cap, via, warnings }  (cost[i][j] = null => bloqueada) */
+function buildModel(state){
+  const plants = state.nodes.filter(n=>n.type==='plant');
+  const dests   = state.nodes.filter(n=>n.type==='dest');
+  const hubs    = state.nodes.filter(n=>n.type==='hub');
+  const m = plants.length, n = dests.length;
+  const cost = Array.from({length:m},()=>Array(n).fill(null));
+  const cap  = Array.from({length:m},()=>Array(n).fill(null));
+  const via  = Array.from({length:m},()=>Array(n).fill(null));
+  const warnings = [];
+  const findEdge = (a,b)=> state.edges.find(e=>e.from===a && e.to===b) || null;
+  for(let i=0;i<m;i++){
+    for(let j=0;j<n;j++){
+      let best = null;
+      const de = findEdge(plants[i].id, dests[j].id);
+      if(de) best = { cost:de.cost, cap:(de.capacity==null?null:de.capacity), via:null };
+      for(const h of hubs){
+        const e1 = findEdge(plants[i].id, h.id);
+        const e2 = findEdge(h.id, dests[j].id);
+        if(e1 && e2){
+          const c = e1.cost + e2.cost;
+          let cp = null;
+          if(e1.capacity!=null || e2.capacity!=null)
+            cp = Math.min(e1.capacity==null?Infinity:e1.capacity, e2.capacity==null?Infinity:e2.capacity);
+          if(!best || c < best.cost) best = { cost:c, cap:cp, via:h };
+        }
+      }
+      if(best){ cost[i][j]=best.cost; cap[i][j]=best.cap; via[i][j]=best.via?best.via.id:null; }
+    }
+  }
+  if(hubs.length && m && n){
+    const viaCount = via.flat().filter(v=>v!==null).length;
+    const directCount = via.flat().filter((v,idx)=>{
+      const i=Math.floor(idx/n), j=idx%n; return v===null && cost[i][j]!==null;
+    }).length;
+    if(!viaCount && !directCount) warnings.push('El hub no tiene rutas completas (planta→hub y hub→destino).');
+    else if(!viaCount) warnings.push('El hub existe pero ninguna ruta lo usa.');
+  }
+  return { plants, dests, hubs, cost, cap, via, warnings };
+}
+
+/* Ajusta oferta/demanda desbalanceada con nodos ficticios (costo 0). */
+function prepareProblem(model){
+  const supply = model.plants.map(p=>p.supply);
+  const demand = model.dests.map(d=>d.demand);
+  const m0 = supply.length, n0 = demand.length;
+  let cost = model.cost.map(r=>r.slice());
+  let cap  = model.cap.map(r=>r.slice());
+  const notes = [];
+  let dummyRow = -1, dummyCol = -1;
+  const S = sum(supply), D = sum(demand);
+  if(S < D){
+    dummyRow = supply.length;
+    supply.push(D-S);
+    cost.push(Array(n0).fill(0));
+    cap.push(Array(n0).fill(null));
+    notes.push('La demanda ('+D+') supera la oferta ('+S+'): se agregó una planta ficticia con '+ (D-S) +' unidades.');
+  } else if(D < S){
+    dummyCol = demand.length;
+    demand.push(S-D);
+    for(let i=0;i<supply.length;i++){ cost[i].push(0); cap[i].push(null); }
+    notes.push('La oferta ('+S+') supera la demanda ('+D+'): se agregó un destino ficticio que absorbe '+ (S-D) +' unidades.');
+  }
+  return { cost, cap, supply, demand, dummyRow, dummyCol, notes, m:supply.length, n:demand.length, m0, n0, S, D };
+}
+
+/* Flujo máximo en la red (source→plantas→destinos→sink) con rutas bloqueadas y capacidades.
+   inRows/inCols: índices de filas/columnas a considerar (permite excluir nodos ficticios).
+   Retorna { flow, arcs } con arcs[m x n] = flujo por celda. */
+function maxFlowArcs(cost, cap, supply, demand, inRows, inCols){
+  const m = supply.length, n = demand.length;
+  const rows = inRows || supply.map((_,i)=>i);
+  const cols = inCols || demand.map((_,j)=>j);
+  const S = 0, T = 1 + rows.length + cols.length, N = T + 1;
+  const C = Array.from({length:N},()=>Array(N).fill(0));
+  const rPos = {}, cPos = {};
+  rows.forEach((r,k)=>rPos[r]=1+k);
+  cols.forEach((c,k)=>cPos[c]=1+rows.length+k);
+  rows.forEach(r=>{ C[S][rPos[r]] = supply[r]; });
+  cols.forEach(c=>{ C[cPos[c]][T] = demand[c]; });
+  const init = Array.from({length:m},()=>Array(n).fill(0));
+  rows.forEach(r=>cols.forEach(c=>{
+    if(!usable(cost,cap,r,c)) return;
+    const rc = cap[r][c]==null ? Math.min(supply[r], demand[c]) : cap[r][c];
+    init[r][c] = Math.max(0, Math.min(rc, supply[r], demand[c]));
+    C[rPos[r]][cPos[c]] = init[r][c];
+  }));
+  let flow = 0, iters = 0;
+  const capT = sum(cols.map(c=>demand[c]));
+  while(flow < capT - EPS && iters++ < 800){
+    const prev = Array(N).fill(-1);
+    const q = [S]; prev[S] = S;
+    let head = 0;
+    while(head < q.length){
+      const u = q[head++];
+      if(u===T) break;
+      for(let v=1;v<N;v++) if(prev[v]===-1 && C[u][v] > EPS){ prev[v]=u; q.push(v); }
+    }
+    if(prev[T]===-1) break;
+    let aug = Infinity, v = T;
+    while(v!==S){ const u=prev[v]; aug = Math.min(aug, C[u][v]); v=u; }
+    v = T;
+    while(v!==S){ const u=prev[v]; C[u][v]-=aug; C[v][u]+=aug; v=u; }
+    flow += aug;
+  }
+  const arcs = Array.from({length:m},()=>Array(n).fill(0));
+  rows.forEach(r=>cols.forEach(c=>{
+    const used = init[r][c] - C[rPos[r]][cPos[c]];
+    if(used > EPS) arcs[r][c] = used;
+  }));
+  return { flow, arcs };
+}
+
+/* Factibilidad: ¿se puede transportar min(oferta, demanda) con las rutas disponibles?
+   Excluye los nodos ficticios del chequeo. */
+function checkFeasibility(prob){
+  const { cost, cap, supply, demand, m0, n0 } = prob;
+  const rows = [], cols = [];
+  for(let i=0;i<supply.length;i++) if(prob.dummyRow !== i && i < m0) rows.push(i);
+  for(let j=0;j<demand.length;j++) if(prob.dummyCol !== j && j < n0) cols.push(j);
+  const S = sum(rows.map(i=>supply[i])), D = sum(cols.map(j=>demand[j]));
+  const required = Math.min(S, D);
+  if(required <= EPS) return { ok:true, short:[] };
+  const { flow, arcs } = maxFlowArcs(cost, cap, supply, demand, rows, cols);
+  if(flow + 1e-6 < required){
+    const short = [];
+    cols.forEach(j=>{
+      let got = 0; rows.forEach(i=>got += arcs[i][j]);
+      if(got + 1e-6 < demand[j]) short.push(j);
+    });
+    return { ok:false, flow, required, shortIdx: short };
+  }
+  return { ok:true, flow, required, shortIdx: [] };
+}
+
+/* Solución inicial factible directa del flujo (respaldo cuando los métodos clásicos no aplican). */
+function seedFromFlow(prob){
+  const { cost, cap, supply, demand } = prob;
+  const { flow, arcs } = maxFlowArcs(cost, cap, supply, demand);
+  const need = sum(supply);
+  if(flow + 1e-6 < need) return null;
+  return arcs;
+}
+
+/* ---------- Métodos de solución ---------- */
+
+function totalCost(x, cost){
+  let z = 0;
+  for(let i=0;i<x.length;i++) for(let j=0;j<x[i].length;j++)
+    if(x[i][j] > EPS && cost[i][j] !== null) z += x[i][j]*cost[i][j];
+  return Math.round(z*1e6)/1e6;
+}
+
+function usable(cost, cap, i, j){
+  return cost[i][j] !== null && !(cap[i][j] !== null && cap[i][j] <= EPS);
+}
+
+/* Esquina noroeste clásica; salta rutas bloqueadas y respeta capacidades.
+   Regla de avance: dentro de una fila j solo avanza; al cambiar de fila j vuelve a la
+   primera columna con demanda pendiente (así se revisan columnas abandonadas). */
+function northwest(prob){
+  const { cost, cap, supply, demand, m, n } = prob;
+  const x = Array.from({length:m},()=>Array(n).fill(0));
+  const s = supply.slice(), d = demand.slice();
+  const steps = [];
+  let i = 0, guard = 0;
+  while(i < m && guard++ < 20000){
+    if(s[i] <= EPS){ i++; continue; }
+    // primera columna: con demanda pendiente, ruta usable y capacidad disponible
+    let j = 0;
+    while(j < n && (d[j] <= EPS || !usable(cost,cap,i,j) ||
+          (cap[i][j] !== null && x[i][j] >= cap[i][j] - EPS))) j++;
+    if(j >= n) break; // fila con oferta y sin celda disponible
+    const avail = cap[i][j] === null ? Infinity : cap[i][j] - x[i][j];
+    const q = Math.min(s[i], d[j], avail);
+    if(q <= EPS){ i++; continue; }
+    const beforeS = s[i], beforeD = d[j];
+    x[i][j] += q; s[i] -= q; d[j] -= q;
+    steps.push('Asignar x'+sub(i+1)+sub(j+1)+' = '+fmtN(q)+'   ('+fmtN(beforeS)+' → '+fmtN(s[i])+' de oferta · '+fmtN(beforeD)+' → '+fmtN(d[j])+' de demanda)');
+  }
+  if(sum(s) > 1e-6 || sum(d) > 1e-6) return { error:'La esquina noroeste no puede cubrir oferta y demanda con las rutas y capacidades actuales.' };
+  return { x, steps };
+}
+
+/* Costo mínimo: asigna primero a la ruta más barata. */
+function leastCost(prob){
+  const { cost, cap, supply, demand, m, n } = prob;
+  const x = Array.from({length:m},()=>Array(n).fill(0));
+  const s = supply.slice(), d = demand.slice();
+  const steps = [];
+  const done = Array.from({length:m},()=>Array(n).fill(false));
+  for(let iter=0; iter<m*n+5; iter++){
+    if(sum(s) <= EPS && sum(d) <= EPS) break;
+    let bi=-1, bj=-1, bc=Infinity;
+    for(let i=0;i<m;i++){ if(s[i]<=EPS) continue;
+      for(let j=0;j<n;j++){ if(d[j]<=EPS || done[i][j]) continue;
+        if(!usable(cost,cap,i,j)) continue;
+        if(cost[i][j] < bc - EPS || (Math.abs(cost[i][j]-bc)<=EPS && (bi<0 || i<bi || (i===bi && j<bj)))){
+          bc = cost[i][j]; bi=i; bj=j;
+        }
+      }
+    }
+    if(bi<0) return { error:'No se pudo construir una solución inicial con costo mínimo: revisa que las rutas permitan cubrir toda la oferta y la demanda.' };
+    let q = Math.min(s[bi], d[bj]);
+    if(cap[bi][bj] !== null) q = Math.min(q, cap[bi][bj]);
+    if(q <= EPS){ done[bi][bj]=true; continue; }
+    x[bi][bj]=q; s[bi]-=q; d[bj]-=q;
+    steps.push('Ruta más barata (costo '+fmtN(bc)+'): x'+sub(bi+1)+sub(bj+1)+' = '+fmtN(q));
+    if(cap[bi][bj] !== null && x[bi][bj] >= cap[bi][bj]-EPS) done[bi][bj]=true;
+  }
+  if(sum(s) > EPS || sum(d) > EPS) return { error:'La asignación por costo mínimo quedó incompleta: ajusta las rutas de la red.' };
+  return { x, steps };
+}
+
+/* Completa una base (bosque) agregando celdas usables no básicas hasta conectar
+   todas las filas/columnas con rutas usables. No debe reconstruirse desde x>0:
+   las celdas en cota superior (x>0 pero fuera de la base) se quedan fuera. */
+function completeBasis(basisIn, cost, cap, m, n){
+  const basis = basisIn.map(r=>r.slice());
+  const dsu = size => {
+    const p = Array.from({length:size},(_,k)=>k);
+    const f = a => { while(p[a]!==a){ p[a]=p[p[a]]; a=p[a]; } return a; };
+    return { f, u:(a,b)=>{ a=f(a); b=f(b); if(a!==b){ p[b]=a; return true; } return false; } };
+  };
+  const dBasic = dsu(m+n);
+  for(let i=0;i<m;i++) for(let j=0;j<n;j++) if(basis[i][j]) dBasic.u(i, m+j);
+  // agrega celdas usables no básicas que unan componentes distintas (sin crear ciclos)
+  let changed = true;
+  while(changed){
+    changed = false;
+    for(let i=0;i<m && !changed;i++) for(let j=0;j<n && !changed;j++){
+      if(basis[i][j] || !usable(cost,cap,i,j)) continue;
+      if(dBasic.f(i) !== dBasic.f(m+j)){ basis[i][j] = true; dBasic.u(i, m+j); changed = true; }
+    }
+  }
+  return basis;
+}
+
+/* Si las x>0 forman ciclos (posible con capacidades), deshace ciclos desplazando flujo
+   alrededor del ciclo hasta que una celda llegue a una cota y salga de la base. */
+function shrinkBasis(x, cost, cap, basis, m, n){
+  for(let guard=0; guard<100; guard++){
+    // detecta ciclo incrementalmente
+    const p = Array.from({length:m+n},(_,k)=>k);
+    const f = a => { while(p[a]!==a){ p[a]=p[p[a]]; a=p[a]; } return a; };
+    let cycleCell = null;
+    outer:
+    for(let i=0;i<m;i++) for(let j=0;j<n;j++){
+      if(!basis[i][j]) continue;
+      const a = f(i), b = f(m+j);
+      if(a === b){ cycleCell = [i,j]; break outer; }
+      p[b] = a;
+    }
+    if(!cycleCell) return;
+    // construye el ciclo que pasa por cycleCell
+    const cyc = cycleInBasis(basis, cycleCell[0], cycleCell[1], m, n);
+    if(!cyc){ basis[cycleCell[0]][cycleCell[1]] = false; continue; }
+    const cells = [{i:cycleCell[0], j:cycleCell[1], enter:true}];
+    for(const [ri,rj] of cyc) cells.push({i:ri, j:rj, enter:false});
+    let sgn = -1; // la entrante disminuye
+    for(const c of cells){ c.s = sgn; sgn = -sgn; }
+    // θ: hasta que alguien llegue a una cota
+    let theta = Infinity, hitter = null;
+    for(const c of cells){
+      const capij = cap[c.i][c.j]==null ? Infinity : cap[c.i][c.j];
+      const lim = c.s > 0 ? capij - x[c.i][c.j] : x[c.i][c.j];
+      if(lim < theta){ theta = lim; hitter = c; }
+    }
+    if(hitter === null || !isFinite(theta)){ basis[cycleCell[0]][cycleCell[1]] = false; continue; }
+    theta = Math.max(0, theta);
+    for(const c of cells){ x[c.i][c.j] = Math.max(0, x[c.i][c.j] + c.s*theta); }
+    basis[hitter.i][hitter.j] = false; // sale de la base al llegar a su cota
+    if(x[hitter.i][hitter.j] <= EPS) x[hitter.i][hitter.j] = 0;
+  }
+}
+
+/* Ciclo en la base que incluye la celda (ei,ej) — como findCycle pero con la celda ya en la base. */
+function cycleInBasis(basis, ei, ej, m, n){
+  const b2 = basis.map(r=>r.slice());
+  b2[ei][ej] = false; // quita la celda para buscar el camino de vuelta
+  const prev = new Array(m+n).fill(null);
+  const start = ei, target = m + ej;
+  const q = [start]; prev[start] = {from:-1, cell:null};
+  let head = 0, found = false;
+  while(head < q.length){
+    const node = q[head++];
+    if(node === target){ found = true; break; }
+    if(node < m){
+      const row = node;
+      for(let j=0;j<n;j++){
+        if(!b2[row][j]) continue;
+        const col = m+j;
+        if(prev[col]===null){ prev[col] = {from:node, cell:[row,j]}; q.push(col); }
+      }
+    } else {
+      const col = node - m;
+      for(let i=0;i<m;i++){
+        if(!b2[i][col]) continue;
+        if(prev[i]===null){ prev[i] = {from:node, cell:[i,col]}; q.push(i); }
+      }
+    }
+  }
+  if(!found) return null;
+  const cells = [];
+  let node = target;
+  while(node !== start){
+    const p = prev[node];
+    if(!p || p.cell===null) return null;
+    cells.push(p.cell);
+    node = p.from;
+  }
+  return cells;
+}
+
+/* u-v (MODI) con celdas bloqueadas, degeneración y capacidad (cota superior). */
+function modi(prob, x0, opts){
+  opts = opts || {};
+  const { cost, cap, supply, demand, m, n } = prob;
+  let x = cloneMatrix(x0);
+  // bases con ciclos (posibles si hay capacidades) se reducen; luego se completan los conectores
+  let basis = Array.from({length:m},(_,i)=>Array.from({length:n},(_,j)=> x[i][j] > EPS));
+  shrinkBasis(x, cost, cap, basis, m, n);
+  basis = completeBasis(basis, cost, cap, m, n);
+  const steps = [];
+  const blocked = {};
+  let z = totalCost(x, cost);
+  const startZ = z;
+  const key = (i,j)=>i+','+j;
+  const MAXIT = 500;
+  let iter = 0, optimal = false, note = null;
+
+  for(iter=0; iter<MAXIT; iter++){
+    // ---- u, v por BFS sobre la base ----
+    const u = Array(m).fill(null), v = Array(n).fill(null);
+    for(let i=0;i<m;i++){
+      if(u[i] !== null) continue;
+      u[i] = 0;
+      const q = [['r',i]];
+      while(q.length){
+        const [t,k] = q.shift();
+        if(t==='r'){
+          for(let j=0;j<n;j++) if(basis[k][j] && v[j]===null){ v[j] = cost[k][j] - u[k]; q.push(['c',j]); }
+        } else {
+          for(let r=0;r<m;r++) if(basis[r][k] && u[r]===null){ u[r] = cost[r][k] - v[k]; q.push(['r',r]); }
+        }
+      }
+    }
+    for(let i=0;i<m;i++) if(u[i]===null) u[i]=0;
+    for(let j=0;j<n;j++) if(v[j]===null) v[j]=0;
+
+    // ---- celda entrante (regla de Bland: primer índice en orden de fila) ----
+    let ei=-1, ej=-1, ed=0, edir=0;
+    for(let i=0;i<m && ei<0;i++) for(let j=0;j<n && ei<0;j++){
+      if(!usable(cost,cap,i,j)) continue;
+      if(basis[i][j]) continue;
+      const k = key(i,j);
+      if(blocked[k]) continue;
+      const d = cost[i][j] - u[i] - v[j];
+      const capij = cap[i][j]==null ? Infinity : cap[i][j];
+      if(x[i][j] <= EPS && d < -EPS){ ei=i; ej=j; ed=d; edir=1; }
+      else if(x[i][j] >= capij - EPS && d > EPS){ ei=i; ej=j; ed=d; edir=-1; }
+    }
+    if(ei < 0){
+      const pending = Object.keys(blocked).length;
+      optimal = pending === 0;
+      if(pending) note = 'Verificación interrumpida en ' + pending + ' celda(s).';
+      break;
+    }
+
+    // ---- ciclo único base + entrante ----
+    const cyc = findCycle(basis, ei, ej, m, n);
+    if(!cyc){ blocked[key(ei,ej)] = true; continue; }
+    // ciclo: [entrante, c1, c2, ...]  signos alternos
+    const cells = [{i:ei, j:ej, enter:true}];
+    for(const [ri,rj] of cyc) cells.push({i:ri, j:rj, enter:false});
+    let sgn = edir; // +1 aumenta, -1 disminuye
+    for(const c of cells){ c.s = sgn; sgn = -sgn; }
+
+    // ---- prueba de razón ----
+    let theta = Infinity, hitter = null;
+    const consider = (c, lim) => {
+      if(lim < -EPS) return;
+      if(lim < theta - EPS){ theta = lim; hitter = c; return; }
+      if(Math.abs(lim - theta) <= EPS && hitter){
+        // desempate: preferir sacar a un básico y luego el menor índice
+        const hPref = hitter.enter ? 1 : 0;
+        const cPref = c.enter ? 1 : 0;
+        if(cPref < hPref){ hitter = c; return; }
+        if(cPref === hPref && !c.enter && !hitter.enter &&
+           (c.i < hitter.i || (c.i===hitter.i && c.j < hitter.j))) hitter = c;
+      }
+    };
+    for(const c of cells){
+      const capij = cap[c.i][c.j]==null ? Infinity : cap[c.i][c.j];
+      const lim = c.s > 0 ? capij - x[c.i][c.j] : x[c.i][c.j];
+      consider(c, lim);
+    }
+    if(hitter === null || !isFinite(theta)){ note = 'No se encontró dirección de mejora (degeneración).'; break; }
+    theta = Math.max(0, theta);
+
+    // ---- aplica ----
+    for(const c of cells) x[c.i][c.j] += c.s * theta;
+    for(const c of cells) if(x[c.i][c.j] < EPS) x[c.i][c.j] = 0;
+
+    let leftDesc = null;
+    if(hitter.enter){
+      // la entrante llega a su cota sin cambiar la base (los u,v siguen igual)
+      leftDesc = 'x'+sub(hitter.i+1)+sub(hitter.j+1)+' llega a su '+(hitter.s>0?'cota superior':'cota inferior')+' (no entra a la base)';
+    } else {
+      basis[hitter.i][hitter.j] = false;
+      basis[ei][ej] = true;
+      leftDesc = 'sale x'+sub(hitter.i+1)+sub(hitter.j+1);
+      delete blocked[key(hitter.i,hitter.j)];
+    }
+    const nz = totalCost(x, cost);
+    steps.push('Iter '+(iter+1)+': entra x'+sub(ei+1)+sub(ej+1)+' (d='+fmtN(ed)+'), θ='+fmtN(theta)+', '+leftDesc+'.  Z: '+fmtN(z)+' → '+fmtN(nz));
+    z = nz;
+  }
+
+  if(!optimal && iter >= MAXIT) note = 'Se alcanzó el máximo de iteraciones.';
+  const zFinal = totalCost(x, cost);
+  return { x, cost:zFinal, steps, optimal:optimal && !note, note, iters:iter, startZ };
+}
+
+/* Encuentra el ciclo base+celda (ei,ej). Devuelve lista de celdas [ [i,j], ... ] sin la entrante. */
+function findCycle(basis, ei, ej, m, n){
+  const prev = new Array(m+n).fill(null); // nodo -> {from, cell}
+  const start = m + ej, target = ei;
+  const q = [start]; prev[start] = {from:-1, cell:null};
+  let head = 0, found = false;
+  while(head < q.length){
+    const node = q[head++];
+    if(node === target){ found = true; break; }
+    if(node < m){ // nodo fila
+      const row = node;
+      for(let j=0;j<n;j++){
+        if(!basis[row][j]) continue;
+        const col = m+j;
+        if(prev[col]===null){ prev[col] = {from:node, cell:[row,j]}; q.push(col); }
+      }
+    } else { // nodo columna
+      const col = node - m;
+      for(let i=0;i<m;i++){
+        if(!basis[i][col]) continue;
+        if(prev[i]===null){ prev[i] = {from:node, cell:[i,col]}; q.push(i); }
+      }
+    }
+  }
+  if(!found) return null;
+  const cells = [];
+  let node = target;
+  while(node !== start){
+    const p = prev[node];
+    if(!p || p.cell===null) return null;
+    cells.push(p.cell);
+    node = p.from;
+  }
+  return cells;
+}
+
+/* Problema completo: factibilidad + noroeste + costo mínimo + MODI. */
+function solveFull(model){
+  const prob = prepareProblem(model);
+  const feas = checkFeasibility(prob);
+  const out = { prob, model, notes: prob.notes.slice(), warnings: model.warnings.slice(), feasible: feas.ok };
+  if(!feas.ok){
+    out.error = 'La red no puede cubrir toda la demanda con las rutas disponibles. Revisa rutas y capacidades.';
+    out.shortIdx = feas.shortIdx;
+    return out;
+  }
+  const nw = northwest(prob);
+  const lc = leastCost(prob);
+  out.nw = nw.error ? { error:nw.error } : { x:nw.x, z:totalCost(nw.x, prob.cost), steps:nw.steps };
+  out.lc = lc.error ? { error:lc.error } : { x:lc.x, z:totalCost(lc.x, prob.cost), steps:lc.steps };
+
+  // solución inicial para MODI: noroeste > costo mínimo > flujo factible
+  let seed = null, seedName = null;
+  if(out.nw.x){ seed = out.nw.x; seedName = 'esquina noroeste'; }
+  else if(out.lc.x){ seed = out.lc.x; seedName = 'costo mínimo'; }
+  else {
+    const fx = seedFromFlow(prob);
+    if(fx){ seed = fx; seedName = 'flujo factible';
+      out.notes.push('Los métodos clásicos no pudieron armar la solución inicial; se usó un flujo factible y MODI lo optimiza.');
+    }
+  }
+  if(seed){
+    const mi = modi(prob, seed);
+    out.modi = mi;
+    out.modiFrom = seedName;
+    out.best = { x:mi.x, z:mi.cost };
+    if(out.lc.x){
+      const mi2 = modi(prob, out.lc.x);
+      out.modiFromLC = mi2;
+      out.lcOptimal = mi2.optimal && Math.abs(mi2.cost - out.lc.z) < EPS;
+    }
+  } else {
+    out.error = out.error || 'No hay solución inicial posible.';
+  }
+  return out;
+}
+
+/* Flujos por arista del lienzo a partir de la asignación (para animar/hub). */
+function edgeFlows(state, model, x){
+  const flows = {}; // edgeId -> unidades
+  const m = model.plants.length, n = model.dests.length;
+  const pIdx = {}, dIdx = {};
+  model.plants.forEach((p,i)=>pIdx[p.id]=i);
+  model.dests.forEach((d,j)=>dIdx[d.id]=j);
+  const findEdge = (a,b)=> state.edges.find(e=>e.from===a && e.to===b);
+  for(let i=0;i<m;i++) for(let j=0;j<n;j++){
+    const q = x[i][j];
+    if(!(q > EPS)) continue;
+    const plant = model.plants[i], dest = model.dests[j];
+    const hubId = model.via[i][j];
+    if(hubId){
+      const e1 = findEdge(plant.id, hubId), e2 = findEdge(hubId, dest.id);
+      if(e1) flows[e1.id] = (flows[e1.id]||0) + q;
+      if(e2) flows[e2.id] = (flows[e2.id]||0) + q;
+    } else {
+      const de = findEdge(plant.id, dest.id);
+      if(de) flows[de.id] = (flows[de.id]||0) + q;
+    }
+  }
+  return flows;
+}
+
+/* Formulación matemática del problema (para exponer). */
+function formulation(model, prob){
+  const { plants, dests } = model;
+  const m = prob.m, n = prob.n;
+  const nm = (i,j)=> 'x'+sub(i+1)+sub(j+1);
+  let Z = [];
+  for(let i=0;i<m;i++) for(let j=0;j<n;j++){
+    if(prob.cost[i][j]===null) continue;
+    Z.push(fmtN(prob.cost[i][j])+'·'+nm(i,j));
+  }
+  let txt = 'Min  Z = ' + (Z.length? Z.join(' + ') : '0');
+  txt += '\n\nSujeto a:';
+  for(let i=0;i<m;i++){
+    const cells = [];
+    for(let j=0;j<n;j++) if(prob.cost[i][j]!==null) cells.push(nm(i,j));
+    if(!cells.length) continue;
+    const label = i===prob.dummyRow ? ' (planta ficticia)' : ' (oferta '+plants[i].name+')';
+    txt += '\n  ' + cells.join(' + ') + ' = ' + fmtN(prob.supply[i]) + label;
+  }
+  for(let j=0;j<n;j++){
+    const cells = [];
+    for(let i=0;i<m;i++) if(prob.cost[i][j]!==null) cells.push(nm(i,j));
+    if(!cells.length) continue;
+    const label = j===prob.dummyCol ? ' (destino ficticio)' : ' (demanda '+dests[j].name+')';
+    txt += '\n  ' + cells.join(' + ') + ' = ' + fmtN(prob.demand[j]) + label;
+  }
+  const blocked = [];
+  for(let i=0;i<m;i++) for(let j=0;j<n;j++) if(prob.cost[i][j]===null && i<prob.m0 && j<prob.n0) blocked.push(nm(i,j));
+  if(blocked.length) txt += '\n  ' + blocked.join(', ') + ' no disponibles (sin ruta)';
+  txt += '\n  x'+'ᵢⱼ ≥ 0  para todo i, j';
+  return txt;
+}
+
+/* ---------- helpers de formato ---------- */
+const SUBS = ['₀','₁','₂','₃','₄','₅','₆','₇','₈','₉'];
+function sub(k){ return String(k).split('').map(c=>SUBS[+c] ?? c).join(''); }
+function fmtN(v){
+  if(v==null || !isFinite(v)) return '∞';
+  const r = Math.round(v*1000)/1000;
+  return Number.isInteger(r) ? String(r) : String(r);
+}
+// === SOLVER END ===
+
+// === APP START ===
+"use strict";
+const $  = s => document.querySelector(s);
+const $$ = s => Array.from(document.querySelectorAll(s));
+const SVGNS = 'http://www.w3.org/2000/svg';
+const NW_ = 150, NH_ = 64;           // dimensiones del nodo
+const STORE_KEY = 'sim-transporte-v1';
+const COLORS = { plant:'#10b981', dest:'#3b82f6', hub:'#f59e0b' };
+const COLOR_BG = { plant:'#ecfdf5', dest:'#eff6ff', hub:'#fffbeb' };
+const COLOR_DK = { plant:'#047857', dest:'#1d4ed8', hub:'#b45309' };
+
+const state = { nodes:[], edges:[], nextId:1 };
+const ui = {
+  tool:'select', sel:null, connectFrom:null,
+  view:{ x:0, y:0, k:1 },
+  results:null, model:null, tab:'best', flows:null
+};
+
+/* ---------- persistencia ---------- */
+function save(){
+  try{ localStorage.setItem(STORE_KEY, JSON.stringify({ nodes:state.nodes, edges:state.edges, nextId:state.nextId })); }catch(e){}
+}
+function loadSaved(){
+  try{
+    const raw = localStorage.getItem(STORE_KEY);
+    if(!raw) return false;
+    const d = JSON.parse(raw);
+    if(!d || !Array.isArray(d.nodes)) return false;
+    state.nodes = d.nodes; state.edges = d.edges || []; state.nextId = d.nextId || (state.nodes.length + state.edges.length + 1);
+    return true;
+  }catch(e){ return false; }
+}
+
+/* ---------- utilidades de red ---------- */
+const nodeById = id => state.nodes.find(n=>n.id===id);
+const edgesOf = id => state.edges.filter(e=>e.from===id || e.to===id);
+function autoName(type){
+  const pre = type==='plant'?'P':type==='dest'?'D':'H';
+  let k=0;
+  do{ k++; } while(state.nodes.some(n=>n.name === pre+k));
+  return pre+k;
+}
+function addNode(type){
+  const count = state.nodes.filter(n=>n.type===type).length;
+  let x, y;
+  if(type==='plant'){ x = 130; y = 110 + count*120; }
+  else if(type==='dest'){ x = 660; y = 90 + count*120; }
+  else { x = 395; y = 240 + count*130; }
+  const n = { id:'n'+(state.nextId++), type, name:autoName(type), supply:type==='plant'?50:0, demand:type==='dest'?50:0, x, y };
+  state.nodes.push(n);
+  autoConnect(n);
+  setTool('select');
+  ui.sel = { type:'node', id:n.id };
+  hideHint(); mutate(); renderSide();
+  toast(n.type==='plant'?'Planta agregada: edita su oferta en el panel derecho':
+        n.type==='dest'?'Destino agregado: edita su demanda en el panel derecho':
+        'Hub agregado: conecta plantas→hub y hub→destinos','ok');
+}
+function autoConnect(n){
+  const hubs = state.nodes.filter(x=>x.type==='hub');
+  const plants = state.nodes.filter(x=>x.type==='plant');
+  const dests = state.nodes.filter(x=>x.type==='dest');
+  const mk = (a,b)=>{ if(!state.edges.some(e=>e.from===a.id && e.to===b.id)) state.edges.push({ id:'n'+(state.nextId++), from:a.id, to:b.id, cost:5, capacity:null }); };
+  if(n.type==='plant'){ hubs.length ? hubs.forEach(h=>mk(n,h)) : dests.forEach(d=>mk(n,d)); }
+  else if(n.type==='dest'){ hubs.length ? hubs.forEach(h=>mk(h,n)) : plants.forEach(p=>mk(p,n)); }
+  else if(n.type==='hub'){ plants.forEach(p=>mk(p,n)); dests.forEach(d=>mk(n,d)); }
+}
+function deleteNode(id){
+  state.nodes = state.nodes.filter(n=>n.id!==id);
+  state.edges = state.edges.filter(e=>e.from!==id && e.to!==id);
+  ui.sel = null; mutate(); renderSide();
+}
+function deleteEdge(id){
+  state.edges = state.edges.filter(e=>e.id!==id);
+  ui.sel = null; mutate(); renderSide();
+}
+function validPair(a,b){
+  if(!a || !b || a.id===b.id) return false;
+  return (a.type==='plant' && (b.type==='dest' || b.type==='hub')) ||
+         (a.type==='hub' && b.type==='dest');
+}
+function tryConnect(fromId, toId){
+  const a = nodeById(fromId), b = nodeById(toId);
+  if(!validPair(a,b)){ toast('Conexión no válida: usa Planta→Destino, Planta→Hub o Hub→Destino.','error'); return; }
+  if(state.edges.some(e=>e.from===a.id && e.to===b.id)){ toast('Esas nodos ya están conectados.','warn'); return; }
+  state.edges.push({ id:'n'+(state.nextId++), from:a.id, to:b.id, cost:5, capacity:null });
+  hideHint(); mutate(); toast('Ruta creada (costo 5). Tócala para editar el costo.','ok');
+}
+
+/* ---------- invalidación de resultados ---------- */
+function invalidateResults(){
+  if(ui.results){
+    ui.results = null; ui.flows = null;
+    $('#results').classList.remove('open');
+    renderGraph();
+  }
+}
+function mutate(opts){
+  save(); invalidateResults();
+  renderGraph();
+  if(!ui.sel) renderSide();
+  else if(opts && opts.refreshSide) renderSide();
+}
+
+/* ---------- geometría de aristas ---------- */
+function clipRect(from, to){
+  const dx = to.x-from.x, dy = to.y-from.y;
+  let t = 1;
+  if(Math.abs(dx) > 1e-6) t = Math.min(t, (NW_/2+3)/Math.abs(dx));
+  if(Math.abs(dy) > 1e-6) t = Math.min(t, (NH_/2+3)/Math.abs(dy));
+  return { x: from.x + dx*t, y: from.y + dy*t };
+}
+function edgeGeom(e){
+  const a = nodeById(e.from), b = nodeById(e.to);
+  if(!a || !b) return null;
+  const p1 = clipRect(a, b), p2 = clipRect(b, a);
+  return { p1, p2, mid:{ x:(p1.x+p2.x)/2, y:(p1.y+p2.y)/2 } };
+}
+
+/* ---------- render del lienzo ---------- */
+function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function nodeHtml(n){
+  const selected = ui.sel && ui.sel.type==='node' && ui.sel.id===n.id;
+  const src = ui.connectFrom===n.id;
+  const stats = ui.flows && ui.model ? nodeStats(n) : null;
+  let sub, subCls = '';
+  if(stats){
+    if(n.type==='plant'){
+      const ok = Math.abs(stats.out - n.supply) < 1e-6 || stats.out <= n.supply + 1e-6;
+      sub = 'Envía ' + fmtN(stats.out) + '/' + fmtN(n.supply) + (ok?' ✓':' ⚠');
+      subCls = ok ? 'ok' : 'warn';
+    } else if(n.type==='dest'){
+      const ok = Math.abs(stats.inp - n.demand) < 1e-6;
+      sub = 'Recibe ' + fmtN(stats.inp) + '/' + fmtN(n.demand) + (ok?' ✓':' ⚠');
+      subCls = ok ? 'ok' : 'warn';
+    } else {
+      const ok = Math.abs(stats.inp - stats.out) < 1e-6;
+      sub = 'Entra ' + fmtN(stats.inp) + ' · sale ' + fmtN(stats.out) + (ok?' ✓':' ⚠');
+      subCls = ok ? 'ok' : 'warn';
+    }
+  } else {
+    sub = n.type==='plant' ? 'Oferta: ' + fmtN(n.supply) :
+          n.type==='dest'  ? 'Demanda: ' + fmtN(n.demand) : 'Hub intermedio';
+  }
+  const letter = n.type==='plant'?'P':n.type==='dest'?'D':'H';
+  return `<g class="node${selected?' selected':''}${src?' connect-src':''}" data-id="${n.id}" data-kind="node" transform="translate(${n.x-NW_/2},${n.y-NH_/2})">
+    <rect class="n-bg" width="${NW_}" height="${NH_}" rx="13" fill="${COLOR_BG[n.type]}" stroke="${COLORS[n.type]}"/>
+    <circle cx="24" cy="32" r="14" fill="${COLORS[n.type]}"/>
+    <text x="24" y="37" text-anchor="middle" font-size="14" font-weight="800" fill="#fff">${letter}</text>
+    <text class="n-name" x="46" y="28">${esc(n.name)}</text>
+    <text class="n-sub${subCls?' '+subCls:''}" x="46" y="46">${esc(sub)}</text>
+  </g>`;
+}
+function nodeStats(n){
+  let inp = 0, out = 0;
+  state.edges.forEach(e=>{
+    const f = ui.flows[e.id] || 0;
+    if(e.from===n.id) out += f;
+    if(e.to===n.id) inp += f;
+  });
+  return { inp, out };
+}
+function edgeHtml(e){
+  const g = edgeGeom(e);
+  if(!g) return '';
+  const selected = ui.sel && ui.sel.type==='edge' && ui.sel.id===e.id;
+  const a = nodeById(e.from), b = nodeById(e.to);
+  const isHubLeg = (a && a.type==='hub') || (b && b.type==='hub');
+  const flow = ui.flows ? (ui.flows[e.id] || 0) : null;
+  const active = flow !== null && flow > 1e-9;
+  const dim = !!ui.flows && !active;
+  const costTxt = fmtN(e.cost);
+  const txt = active ? costTxt + ' · x=' + fmtN(flow) : costTxt;
+  const w = txt.length*6.7 + 16;
+  const pill = `<rect class="${active?'e-alloc-bg':'e-pill'}" x="${g.mid.x-w/2}" y="${g.mid.y-9}" width="${w}" height="18" rx="9"/>
+    <text class="${active?'e-alloc':'e-cost'}" x="${g.mid.x}" y="${g.mid.y}">${txt}</text>`;
+  const capTitle = e.capacity!=null ? ` · máx ${fmtN(e.capacity)}` : '';
+  return `<g class="edge${selected?' selected':''}${active?' active':''}${dim?' dimmed':''}${isHubLeg?' hubleg':''}" data-id="${e.id}" data-kind="edge"${active?` style="animation-delay:${(allocDelay++%8)*70}ms"`:''}>
+    <title>${esc(a?a.name:'?')} → ${esc(b?b.name:'?')} · costo ${costTxt}${capTitle}</title>
+    <path class="e-line" d="M${g.p1.x} ${g.p1.y} L${g.p2.x} ${g.p2.y}" marker-end="url(#${active?'arrowGood':selected?'arrowSel':'arrow'})"/>
+    <g class="${active?'alloc-in':''}">${pill}</g></g>`;
+}
+let allocDelay = 0;
+function renderGraph(){
+  allocDelay = 0;
+  $('#edgesLayer').innerHTML = state.edges.map(edgeHtml).join('');
+  $('#nodesLayer').innerHTML = state.nodes.map(nodeHtml).join('');
+}
+function updateNodePos(n){
+  const el = $(`#nodesLayer g[data-id="${n.id}"]`);
+  if(el) el.setAttribute('transform', `translate(${n.x-NW_/2},${n.y-NH_/2})`);
+}
+function refreshEdgePaths(){
+  state.edges.forEach(e=>{
+    const g = edgeGeom(e); if(!g) return;
+    const el = $(`#edgesLayer g[data-id="${e.id}"]`);
+    if(!el) return;
+    const p = el.querySelector('.e-line');
+    p.setAttribute('d', `M${g.p1.x} ${g.p1.y} L${g.p2.x} ${g.p2.y}`);
+    const pill = el.querySelector('.e-pill'), txt = el.querySelector('.e-cost');
+    if(pill && txt){
+      const cw = parseFloat(pill.getAttribute('width'));
+      pill.setAttribute('x', g.mid.x-cw/2); pill.setAttribute('y', g.mid.y-9);
+      txt.setAttribute('x', g.mid.x); txt.setAttribute('y', g.mid.y);
+    }
+    const bg = el.querySelector('.e-alloc-bg'), at = el.querySelector('.e-alloc');
+    if(bg && at){
+      const aw = parseFloat(bg.getAttribute('width'));
+      bg.setAttribute('x', g.mid.x-aw/2); bg.setAttribute('y', g.mid.y+13);
+      at.setAttribute('x', g.mid.x); at.setAttribute('y', g.mid.y+21.5);
+    }
+  });
+}
+
+/* ---------- panel lateral ---------- */
+function renderSide(){
+  const side = $('#side');
+  if(ui.sel && ui.sel.type==='node'){
+    const n = nodeById(ui.sel.id);
+    if(!n){ ui.sel = null; renderSide(); return; }
+    const routes = edgesOf(n.id).length;
+    side.innerHTML = `
+      <div class="side-head"><h2>Nodo</h2><span class="badge ${n.type}">${n.type==='plant'?'PLANTA':n.type==='dest'?'DESTINO':'HUB'}</span></div>
+      <div class="side-body">
+        <div class="field"><label>NOMBRE</label><input id="fName" type="text" value="${esc(n.name)}" maxlength="14"></div>
+        ${n.type==='plant' ? `<div class="field"><label>OFERTA (unidades disponibles)</label><input id="fSupply" type="number" min="0" step="any" value="${n.supply}"></div>` : ''}
+        ${n.type==='dest' ? `<div class="field"><label>DEMANDA (unidades requeridas)</label><input id="fDemand" type="number" min="0" step="any" value="${n.demand}"></div>` : ''}
+        ${n.type==='hub' ? `<div class="muted-note">El hub no produce ni consume: solo equilibra el flujo.<br><b>Lo que entra = lo que sale.</b></div>` : ''}
+        <div class="field" style="margin-top:12px"><label>RUTAS CONECTADAS</label>
+          <div class="muted-note">${routes} ruta(s). ${n.type!=='hub'?'Usa la herramienta <b>Ruta</b> para conectar o desconectar nodos.':'Conecta plantas → hub y hub → destinos.'}</div></div>
+        <div class="side-actions"><button class="btn danger" id="fDelete">Eliminar nodo</button></div>
+      </div>`;
+    const nameI = $('#fName');
+    nameI.addEventListener('input', ()=>{ n.name = nameI.value || n.name; save(); renderGraph(); if(ui.results) renderResults(); });
+    const sup = $('#fSupply');
+    if(sup) sup.addEventListener('change', ()=>{ const v = parseFloat(sup.value); n.supply = isFinite(v)&&v>=0 ? v : n.supply; sup.value = n.supply; hideHint(); mutate(); });
+    const dem = $('#fDemand');
+    if(dem) dem.addEventListener('change', ()=>{ const v = parseFloat(dem.value); n.demand = isFinite(v)&&v>=0 ? v : n.demand; dem.value = n.demand; hideHint(); mutate(); });
+    $('#fDelete').addEventListener('click', ()=>{ deleteNode(n.id); toast('Nodo eliminado','ok'); });
+    return;
+  }
+  if(ui.sel && ui.sel.type==='edge'){
+    const e = state.edges.find(x=>x.id===ui.sel.id);
+    if(!e){ ui.sel = null; renderSide(); return; }
+    const a = nodeById(e.from), b = nodeById(e.to);
+    const isHubLeg = a.type==='hub' || b.type==='hub';
+    side.innerHTML = `
+      <div class="side-head"><h2>Ruta</h2><span class="badge ${b.type}">${a.type.toUpperCase()} → ${b.type.toUpperCase()}</span></div>
+      <div class="side-body">
+        <div class="muted-note" style="font-size:13px"><b>${esc(a.name)}</b> → <b>${esc(b.name)}</b></div>
+        <div class="field" style="margin-top:12px"><label>COSTO POR UNIDAD ENVIADA</label>
+          <input id="fCost" type="number" min="0" step="any" value="${e.cost}"></div>
+        <div class="field"><label>CAPACIDAD MÁXIMA (opcional)</label>
+          <input id="fCap" type="number" min="0" step="any" value="${e.capacity!=null?e.capacity:''}" placeholder="sin límite"></div>
+        ${isHubLeg && b.type==='hub' ? '<div class="muted-note">Tramo del hub: el costo total de la ruta vía hub es la suma de sus tramos.</div>' : ''}
+        <div class="side-actions"><button class="btn danger" id="fDelEdge">Eliminar ruta</button></div>
+      </div>`;
+    $('#fCost').addEventListener('change', ev=>{
+      const v = parseFloat(ev.target.value);
+      if(isFinite(v) && v>=0){ e.cost = v; hideHint(); mutate(); } else ev.target.value = e.cost;
+    });
+    $('#fCap').addEventListener('change', ev=>{
+      const v = parseFloat(ev.target.value);
+      if(ev.target.value===''){ e.capacity = null; }
+      else if(isFinite(v) && v>=0){ e.capacity = v; }
+      else { ev.target.value = e.capacity!=null?e.capacity:''; return; }
+      hideHint(); mutate();
+    });
+    $('#fDelEdge').addEventListener('click', ()=>{ deleteEdge(e.id); toast('Ruta eliminada','ok'); });
+    return;
+  }
+  renderMatrix();
+}
+function renderMatrix(){
+  const model = buildModel(state);
+  const plants = model.plants, dests = model.dests;
+  const side = $('#side');
+  if(!plants.length && !dests.length){
+    side.innerHTML = `
+      <div class="side-head"><h2>Datos del problema</h2></div>
+      <div class="side-body"><div class="empty-state">
+        <svg viewBox="0 0 24 24"><circle cx="6" cy="18" r="2.5"/><circle cx="18" cy="6" r="2.5"/><path d="M8 16l8-8"/></svg>
+        <p>Todavía no hay nodos.<br>Agrega <b>plantas</b> y <b>destinos</b> con los botones de la izquierda, o carga el <b>Ejemplo</b>.</p>
+      </div></div>`;
+    return;
+  }
+  if(!plants.length || !dests.length){
+    side.innerHTML = `
+      <div class="side-head"><h2>Datos del problema</h2></div>
+      <div class="side-body"><div class="empty-state">
+        <svg viewBox="0 0 24 24"><path d="M3 21V10l5 3V10l5 3V7l6 4v10z"/><path d="M3 21h18"/></svg>
+        <p>${plants.length ? 'Faltan <b>destinos</b>: ya hay plantas con oferta.' : 'Faltan <b>plantas</b>: ya hay destinos con demanda.'}</p>
+      </div></div>`;
+    return;
+  }
+  const heads = dests.map(d=>`<th>${esc(d.name)}</th>`).join('');
+  const rows = plants.map(p=>`
+    <tr>
+      <td class="row-label">${esc(p.name)}<small>oferta</small></td>
+      ${dests.map(d=>{
+        const idxP = plants.indexOf(p), idxD = dests.indexOf(d);
+        const c = model.cost[idxP][idxD];
+        const via = model.via[idxP][idxD];
+        if(c===null) return `<td class="blocked"><button data-plant="${p.id}" data-dest="${d.id}" title="Sin ruta: toca para crearla">+</button></td>`;
+        const ro = via ? ' readonly data-via="1"' : '';
+        return `<td><input class="cost${via?' fixed':''}" data-p="${idxP}" data-d="${idxD}" data-pe="${p.id}" data-de="${d.id}" type="number" min="0" step="any" value="${c}"${ro} title="${via?'Ruta vía hub: edita los tramos en el lienzo':'Costo por unidad'}"></td>`;
+      }).join('')}
+      <td><input class="fixed" data-node="${p.id}" data-attr="supply" type="number" min="0" step="any" value="${p.supply}"></td>
+    </tr>`).join('');
+  const totS = plants.reduce((s,p)=>s+p.supply,0);
+  const totD = dests.reduce((s,d)=>s+d.demand,0);
+  const bal = Math.abs(totS-totD) < 1e-9;
+  side.innerHTML = `
+    <div class="side-head"><h2>Datos del problema</h2></div>
+    <div class="side-body">
+      <div class="matrix-wrap">
+        <table class="matrix">
+          <thead><tr><th class="rh"></th>${heads}<th>Oferta</th></tr></thead>
+          <tbody>${rows}</tbody>
+          <tfoot>
+            <tr><th class="rh">Demanda</th>${dests.map(d=>`<td><input class="fixed" data-node="${d.id}" data-attr="demand" type="number" min="0" step="any" value="${d.demand}"></td>`).join('')}<td class="tot">${fmtN(totS)}</td></tr>
+            <tr><td colspan="${dests.length+2}" style="text-align:left;padding-top:6px"><span id="balNote" class="tot ${bal?'bal-ok':'bal-bad'}">${fmtN(totS)} ${bal?'=':'≠'} ${fmtN(totD)}  ${bal?'✓ problema balanceado':'⚠ se agregará un nodo ficticio'}</span></td></tr>
+          </tfoot>
+        </table>
+      </div>
+      <div class="mtx-legend">
+        <span><i style="background:${COLORS.plant}"></i>Planta (oferta)</span>
+        <span><i style="background:${COLORS.dest}"></i>Destino (demanda)</span>
+        <span><i style="background:${COLORS.hub}"></i>Hub</span>
+        <span><i style="background:#f8fafc;border:1px dashed #cbd5e1"></i>Sin ruta</span>
+      </div>
+      <div class="muted-note" style="margin-top:12px">Toca un nodo o una ruta del lienzo para editar sus datos. Con <b>Run</b> se resuelve el problema.</div>
+    </div>`;
+  side.querySelectorAll('input.cost:not([readonly])').forEach(inp=>{
+    inp.addEventListener('change', ()=>{
+      const v = parseFloat(inp.value);
+      const e = state.edges.find(x=>x.from===inp.dataset.pe && x.to===inp.dataset.de);
+      if(e && isFinite(v) && v>=0){ e.cost = v; hideHint(); mutate(); }
+      else { inp.value = e ? e.cost : inp.value; }
+    });
+  });
+  side.querySelectorAll('input.cost[data-via]').forEach(inp=>{
+    inp.addEventListener('focus', ()=>{ inp.blur(); toast('Esta ruta pasa por el hub: toca la ruta en el lienzo para editar sus tramos.','warn',3400); });
+  });
+  side.querySelectorAll('td.blocked button').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      state.edges.push({ id:'n'+(state.nextId++), from:btn.dataset.plant, to:btn.dataset.dest, cost:5, capacity:null });
+      hideHint(); mutate(); toast('Ruta creada con costo 5. Ajusta el costo en la tabla.','ok');
+    });
+  });
+  side.querySelectorAll('input[data-node]').forEach(inp=>{
+    inp.addEventListener('change', ()=>{
+      const n = nodeById(inp.dataset.node);
+      const v = parseFloat(inp.value);
+      if(n && isFinite(v) && v>=0){
+        if(inp.dataset.attr==='supply') n.supply = v; else n.demand = v;
+        hideHint(); mutate();
+        const totS2 = plants.reduce((s,p)=>s+p.supply,0), totD2 = dests.reduce((s,d)=>s+d.demand,0);
+        const ok = Math.abs(totS2-totD2)<1e-9;
+        const el = $('#balNote');
+        if(el){ el.textContent = `${fmtN(totS2)} ${ok?'=':'≠'} ${fmtN(totD2)}  ${ok?'✓ problema balanceado':'⚠ se agregará un nodo ficticio'}`; el.className = 'tot '+(ok?'bal-ok':'bal-bad'); }
+      } else if(n) inp.value = inp.dataset.attr==='supply' ? n.supply : n.demand;
+    });
+  });
+}
+
+/* ---------- ejecución ---------- */
+function run(){
+  const plants = state.nodes.filter(n=>n.type==='plant');
+  const dests   = state.nodes.filter(n=>n.type==='dest');
+  if(!plants.length || !dests.length){ toast('Agrega al menos una planta y un destino antes de ejecutar.','error',3600); return; }
+  if(plants.every(p=>p.supply<=0) || dests.every(d=>d.demand<=0)){ toast('La oferta y la demanda deben ser mayores que 0.','error'); return; }
+  const btn = $('#btnRun');
+  btn.classList.add('running');
+  setTimeout(()=>{
+    try{
+      const model = buildModel(state);
+      const res = solveFull(model);
+      ui.model = model;
+      ui.results = res;
+      if(res.error){
+        ui.flows = null; ui.tab = 'best';
+        const shorts = (res.shortIdx||[]).map(i=>model.dests[i] && model.dests[i].name).filter(Boolean);
+        res.displayError = res.error + (shorts.length ? ' (sin cubrir: ' + shorts.join(', ') + ')' : '');
+        renderResults(); renderGraph(); openResults();
+        toast('No se pudo resolver: revisa la red.','error',4200);
+      } else {
+        ui.tab = res.modi ? 'best' : (res.lc.x ? 'lc' : 'nw');
+        applyTab();
+        renderResults(); openResults();
+        toast('Costo mínimo encontrado: ' + fmtN(res.best.z) + ' unidades monetarias','ok',3600);
+      }
+      hideHint();
+    }catch(err){
+      console.error(err);
+      toast('Error inesperado: ' + err.message, 'error', 5000);
+      ui.results = null; ui.flows = null; renderGraph();
+    }
+    btn.classList.remove('running');
+  }, 130);
+}
+function applyTab(){
+  const R = ui.results;
+  if(!R || R.error){ ui.flows = null; renderGraph(); return; }
+  const x = ui.tab==='nw' && R.nw.x ? R.nw.x : ui.tab==='lc' && R.lc.x ? R.lc.x : R.best.x;
+  ui.flows = edgeFlows(state, ui.model, x);
+  renderGraph();
+}
+function openResults(){ $('#results').classList.add('open'); }
+
+/* ---------- resultados ---------- */
+function countUp(el, target){
+  if(window.matchMedia('(prefers-reduced-motion: reduce)').matches){ el.textContent = fmtN(target); return; }
+  const t0 = performance.now(), dur = 750;
+  let done = false;
+  function finish(){ if(done) return; done = true; el.textContent = fmtN(target); }
+  function frame(){
+    if(done) return;
+    const p = Math.min(1, Math.max(0, (performance.now()-t0)/dur));
+    const e = 1 - Math.pow(1-p, 3);
+    el.textContent = p<1 ? fmtN(Math.round(target*e)) : fmtN(target);
+    if(p<1) requestAnimationFrame(frame); else done = true;
+  }
+  requestAnimationFrame(frame);
+  setTimeout(finish, dur+120);
+}
+function noticeHtml(text, kind){
+  return `<div class="notice${kind==='err'?' err':''}"><svg viewBox="0 0 24 24"><path d="M12 9v4M12 17h.01M10.3 3.9 2.4 18a2 2 0 0 0 1.7 3h15.8a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg><div>${esc(text)}</div></div>`;
+}
+function allocTable(R, x){
+  const M = R.model, P = R.prob;
+  const nR = P.m, nC = P.n;
+  const head = `<tr><th></th>${Array.from({length:nC},(_,j)=>{
+      const name = j < M.dests.length ? M.dests[j].name : 'Ficticio';
+      const dum = j >= M.dests.length ? ' class="dummy"' : '';
+      return `<th${dum}>${esc(name)}</th>`;
+    }).join('')}<th>Oferta</th></tr>`;
+  const body = Array.from({length:nR},(_,i)=>{
+    const name = i < M.plants.length ? M.plants[i].name : 'Ficticia';
+    const dum = i >= M.plants.length ? ' class="dummy"' : '';
+    const cells = Array.from({length:nC},(_,j)=>{
+      const v = x[i] ? (x[i][j]||0) : 0;
+      const pos = v > 1e-9;
+      const dj = j >= M.dests.length ? ' dummy' : '';
+      return `<td class="v${pos?' pos':''}${dj}">${pos?fmtN(v):'·'}</td>`;
+    }).join('');
+    const rt = Array.from({length:nC},(_,j)=> (x[i]?(x[i][j]||0):0)).reduce((s,v)=>s+v,0);
+    return `<tr><td class="name${dum}">${esc(name)}</td>${cells}<td class="v"><b>${fmtN(rt)}</b></td></tr>`;
+  }).join('');
+  const foot = `<tr class="sum"><td class="name">Demanda</td>${Array.from({length:nC},(_,j)=>{
+      const ct = Array.from({length:nR},(_,i)=> (x[i]?(x[i][j]||0):0)).reduce((s,v)=>s+v,0);
+      return `<td class="v">${fmtN(ct)}</td>`;
+    }).join('')}<td class="v">${fmtN(sum(x.flat()))}</td></tr>`;
+  return `<table class="alloc"><thead>${head}</thead><tbody>${body}</tbody><tfoot>${foot}</tfoot></table>`;
+}
+function logHtml(R){
+  let h = '';
+  const head = t => `<div class="lg-head">${esc(t)}</div>`;
+  if(R.nw.x){
+    h += head('■ Esquina noroeste — solución inicial');
+    h += R.nw.steps.map(s=>esc(s)).join('<br>');
+    h += '<br><b>Costo total: ' + fmtN(R.nw.z) + '</b>';
+  } else h += '<div class="lg-warn">■ Esquina noroeste: ' + esc(R.nw.error) + '</div>';
+  h += '<br>';
+  if(R.lc.x){
+    h += head('■ Costo mínimo — solución inicial');
+    h += R.lc.steps.map(s=>esc(s)).join('<br>');
+    h += '<br><b>Costo total: ' + fmtN(R.lc.z) + '</b>';
+  } else h += '<div class="lg-warn">■ Costo mínimo: ' + esc(R.lc.error) + '</div>';
+  h += '<br>';
+  if(R.modi){
+    h += head('■ MODI (u-v) — mejoramiento desde ' + R.modiFrom);
+    if(R.modi.steps.length) h += R.modi.steps.map(s=>esc(s)).join('<br>') + '<br>';
+    h += R.modi.optimal
+      ? '<div class="lg-good">✓ Verificado con costos reducidos: ' + fmtN(R.modi.cost) + ' es la solución óptima.</div>'
+      : '<div class="lg-warn">⚠ ' + esc(R.modi.note || 'Sin óptimo verificado.') + '</div>';
+  }
+  if(R.modiFromLC){
+    h += '<br>' + head('■ MODI desde costo mínimo');
+    h += R.modiFromLC.iters === 0
+      ? '<div class="lg-good">✓ 0 iteraciones: la solución de costo mínimo ya era óptima.</div>'
+      : R.modiFromLC.steps.map(s=>esc(s)).join('<br>') + '<br>' +
+        (R.modiFromLC.optimal ? '<div class="lg-good">✓ Óptimo confirmado: ' + fmtN(R.modiFromLC.cost) + '</div>' : '<div class="lg-warn">⚠ ' + esc(R.modiFromLC.note||'') + '</div>');
+  }
+  return `<div class="log">${h}</div>`;
+}
+function hubCard(){
+  if(!ui.flows || !ui.model || !ui.model.hubs.length) return '';
+  return ui.model.hubs.map(h=>{
+    let inp = 0, out = 0;
+    state.edges.forEach(e=>{
+      const f = ui.flows[e.id] || 0;
+      if(e.to===h.id) inp += f;
+      if(e.from===h.id) out += f;
+    });
+    const ok = Math.abs(inp-out) < 1e-6;
+    return `<p>• <b>${esc(h.name)}</b>: entra ${fmtN(inp)} · sale ${fmtN(out)} — ${ok?'<span class="ok">✓ balanceado</span>':'<b>⚠ desbalance</b>'}</p>`;
+  }).join('');
+}
+function renderResults(){
+  const R = ui.results, box = $('#resultsInner');
+  if(!R){ box.innerHTML = ''; return; }
+  const notes = [...(R.notes||[]), ...(R.warnings||[])];
+  if(R.error){
+    box.innerHTML = `
+      ${noticeHtml(R.displayError || R.error, 'err')}
+      ${notes.map(n=>noticeHtml(n)).join('')}
+      ${R.prob && R.model ? `<details class="more"><summary>Modelo matemático</summary><div class="more-body"><div class="formula">${esc(formulation(R.model, R.prob))}</div></div></details>` : ''}`;
+    return;
+  }
+  const nwZ = R.nw.x ? R.nw.z : null;
+  const lcZ = R.lc.x ? R.lc.z : null;
+  const bestZ = R.best.z;
+  const saveVs = nwZ!=null ? nwZ : lcZ;
+  const saveAbs = saveVs!=null ? saveVs - bestZ : null;
+  const savePct = saveVs ? Math.round(saveAbs/saveVs*100) : 0;
+  const methods = [
+    { id:'nw', name:'Esquina noroeste', z:nwZ },
+    { id:'lc', name:'Costo mínimo', z:lcZ },
+    { id:'best', name:'Óptimo (MODI)', z:bestZ }
+  ].filter(m=>m.z!=null);
+  const maxZ = Math.max(...methods.map(m=>m.z), 1);
+  const tabs = [];
+  if(R.nw.x) tabs.push({id:'nw', label:'Esquina noroeste'});
+  if(R.lc.x) tabs.push({id:'lc', label:'Costo mínimo'});
+  tabs.push({id:'best', label:'Óptimo (MODI)'});
+  const tabX = ui.tab==='nw' && R.nw.x ? R.nw.x : ui.tab==='lc' && R.lc.x ? R.lc.x : R.best.x;
+  const hub = hubCard();
+
+  box.innerHTML = `
+    ${notes.map(n=>noticeHtml(n)).join('')}
+    <div class="kpis">
+      <div class="kpi ${nwZ!=null?'':'na'}">
+        <div class="k-label">Esquina noroeste</div>
+        <div class="k-value" ${nwZ!=null?`data-count="${nwZ}"`:''}>${nwZ!=null?fmtN(nwZ):'N/A'}</div>
+        <div class="k-sub">${nwZ!=null?'sin mirar costos':esc((R.nw.error||'').slice(0,44))}</div>
+      </div>
+      <div class="kpi ${lcZ!=null?'':'na'}">
+        <div class="k-label">Costo mínimo</div>
+        <div class="k-value" ${lcZ!=null?`data-count="${lcZ}"`:''}>${lcZ!=null?fmtN(lcZ):'N/A'}</div>
+        <div class="k-sub">${lcZ!=null?'asigna primero lo barato':esc((R.lc.error||'').slice(0,44))}</div>
+      </div>
+      <div class="kpi best">
+        <div class="k-label">Óptimo · MODI</div>
+        <div class="k-value" data-count="${bestZ}">${fmtN(bestZ)}</div>
+        <div class="k-sub">verificado con u-v${R.modi&&R.modi.note?' · '+esc(R.modi.note.slice(0,30)):''}</div>
+      </div>
+      <div class="kpi save">
+        <div class="k-label">Ahorro vs. ${nwZ!=null?'esquina noroeste':'costo mínimo'}</div>
+        <div class="k-value">${saveAbs!=null && saveAbs>0.5 ? '−'+fmtN(saveAbs) : '0'}</div>
+        <div class="k-sub">${saveAbs==null ? 'sin comparación disponible' : saveAbs>0.5 ? savePct+'% menos que la solución inicial' : 'la solución inicial ya era óptima'}</div>
+      </div>
+    </div>
+    <div class="res-cols">
+      <div>
+        <h3>Comparación de métodos</h3>
+        <div class="bars">
+          ${methods.map(m=>`<div class="bar-row">
+            <span class="b-name">${m.name}</span>
+            <div class="bar-track"><div class="bar-fill${m.z===bestZ?' good':''}" data-w="${Math.max(4, m.z/maxZ*100)}">${m.z===bestZ?'óptimo':''}</div></div>
+            <span class="b-val">${fmtN(m.z)}</span></div>`).join('')}
+        </div>
+        <div class="tabs">${tabs.map(t=>`<button class="tab${ui.tab===t.id?' active':''}" data-tab="${t.id}">${t.label}</button>`).join('')}</div>
+        ${allocTable(R, tabX)}
+      </div>
+      <div>
+        ${hub ? `<div class="hub-card"><h4>Balance del hub</h4>${hub}</div>` : ''}
+        <details class="more"><summary>Registro de pasos</summary><div class="more-body">${logHtml(R)}</div></details>
+        <details class="more"><summary>Modelo matemático (formulación)</summary><div class="more-body"><div class="formula">${esc(formulation(R.model, R.prob))}</div></div></details>
+      </div>
+    </div>`;
+
+  box.querySelectorAll('.tab').forEach(b=>b.addEventListener('click', ()=>{
+    ui.tab = b.dataset.tab;
+    applyTab();
+    renderResults();
+  }));
+  requestAnimationFrame(()=>{
+    box.querySelectorAll('.bar-fill').forEach(b=>{ b.style.width = b.dataset.w + '%'; });
+    box.querySelectorAll('[data-count]').forEach(el=>countUp(el, parseFloat(el.dataset.count)));
+  });
+}
+
+/* ---------- ejemplo / limpiar ---------- */
+function loadExample(force){
+  if(!force && (state.nodes.length || state.edges.length)){
+    if(!confirm('Reemplazar el contenido actual con el caso de ejemplo?')) return;
+  }
+  state.nodes = [
+    { id:'p1', type:'plant', name:'P1', supply:80, demand:0, x:150, y:150 },
+    { id:'p2', type:'plant', name:'P2', supply:70, demand:0, x:150, y:370 },
+    { id:'d1', type:'dest',  name:'D1', supply:0, demand:50, x:650, y:110 },
+    { id:'d2', type:'dest',  name:'D2', supply:0, demand:60, x:650, y:270 },
+    { id:'d3', type:'dest',  name:'D3', supply:0, demand:40, x:650, y:430 }
+  ];
+  state.edges = [
+    { id:'e1', from:'p1', to:'d1', cost:4, capacity:null },
+    { id:'e2', from:'p1', to:'d2', cost:6, capacity:null },
+    { id:'e3', from:'p1', to:'d3', cost:8, capacity:null },
+    { id:'e4', from:'p2', to:'d1', cost:5, capacity:null },
+    { id:'e5', from:'p2', to:'d2', cost:3, capacity:null },
+    { id:'e6', from:'p2', to:'d3', cost:7, capacity:null }
+  ];
+  state.nextId = 100;
+  ui.sel = null; setTool('select');
+  save(); invalidateResults(); renderGraph(); renderSide();
+  zoomFit(); hideHint(); toast('Caso de ejemplo cargado: toca Run para resolver.','ok',3400);
+}
+function clearAll(){
+  if(state.nodes.length && !confirm('¿Borrar todos los nodos y rutas?')) return;
+  state.nodes = []; state.edges = []; state.nextId = 1;
+  ui.sel = null; setTool('select');
+  save(); invalidateResults(); renderGraph(); renderSide();
+}
+
+/* ---------- herramientas ---------- */
+function setTool(t){
+  ui.tool = t;
+  if(t!=='connect') ui.connectFrom = null;
+  $$('.palette .tool[data-tool]').forEach(b=>b.classList.toggle('active', b.dataset.tool===t));
+  const area = $('#canvasArea');
+  area.classList.toggle('tool-connect', t==='connect');
+  area.classList.toggle('tool-delete', t==='delete');
+  renderGraph();
+}
+function hideHint(){ $('#hint').classList.add('hidden'); }
+
+/* ---------- toast ---------- */
+let toastTimer = null;
+function toast(msg, kind, ms){
+  const t = $('#toast');
+  t.textContent = msg;
+  t.className = 'toast show ' + (kind||'ok');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>t.classList.remove('show'), ms || 2800);
+}
+
+/* ---------- vista (zoom / pan) ---------- */
+function applyView(){
+  const v = ui.view;
+  $('#world').setAttribute('transform', `translate(${v.x},${v.y}) scale(${v.k})`);
+  const area = $('#canvasArea');
+  area.style.backgroundSize = (24*v.k)+'px '+(24*v.k)+'px';
+  area.style.backgroundPosition = v.x+'px '+v.y+'px';
+}
+function screenToWorld(cx, cy){
+  const r = $('#canvasArea').getBoundingClientRect();
+  return { x:(cx - r.left - ui.view.x)/ui.view.k, y:(cy - r.top - ui.view.y)/ui.view.k };
+}
+function zoomAt(cx, cy, factor){
+  const v = ui.view;
+  const r = $('#canvasArea').getBoundingClientRect();
+  const px = cx - r.left, py = cy - r.top;
+  const nk = Math.min(2.4, Math.max(0.35, v.k*factor));
+  v.x = px - (px - v.x)*(nk/v.k);
+  v.y = py - (py - v.y)*(nk/v.k);
+  v.k = nk;
+  applyView();
+}
+function zoomFit(){
+  const r = $('#canvasArea').getBoundingClientRect();
+  if(!state.nodes.length){ ui.view = { x:0, y:0, k:1 }; applyView(); return; }
+  const xs = state.nodes.map(n=>n.x), ys = state.nodes.map(n=>n.y);
+  const minX = Math.min(...xs)-NW_, maxX = Math.max(...xs)+NW_;
+  const minY = Math.min(...ys)-NH_, maxY = Math.max(...ys)+NH_;
+  const bw = maxX-minX, bh = maxY-minY;
+  const k = Math.min((r.width-70)/bw, (r.height-70)/bh, 1.5);
+  ui.view = { k, x:(r.width - bw*k)/2 - minX*k, y:(r.height - bh*k)/2 - minY*k };
+  applyView();
+}
+
+/* ---------- interacción del lienzo ---------- */
+let drag = null, pan = null;
+$('#canvasArea').addEventListener('pointerdown', e=>{
+  if(e.button !== 0) return;
+  const nodeEl = e.target.closest('.node');
+  const edgeEl = e.target.closest('.edge');
+  if(nodeEl){
+    const id = nodeEl.dataset.id;
+    if(ui.tool==='delete'){
+      const n = nodeById(id);
+      if(n && edgesOf(id).length && !confirm(`¿Eliminar ${n.name} y sus ${edgesOf(id).length} ruta(s)?`)) return;
+      deleteNode(id); toast('Nodo eliminado','ok'); return;
+    }
+    if(ui.tool==='connect'){
+      if(!ui.connectFrom){ ui.connectFrom = id; renderGraph(); toast('Ahora toca el nodo destino (o Esc para cancelar).','ok',2600); }
+      else if(ui.connectFrom===id){ ui.connectFrom = null; renderGraph(); }
+      else { const from = ui.connectFrom; ui.connectFrom = null; tryConnect(from, id); renderGraph(); }
+      return;
+    }
+    const n = nodeById(id);
+    const w = screenToWorld(e.clientX, e.clientY);
+    drag = { id, ox:w.x - n.x, oy:w.y - n.y, moved:false, sx:e.clientX, sy:e.clientY, el:nodeEl };
+    return;
+  }
+  if(edgeEl){
+    const id = edgeEl.dataset.id;
+    if(ui.tool==='delete'){ deleteEdge(id); toast('Ruta eliminada','ok'); return; }
+    if(ui.tool==='connect'){ toast('Toca nodos, no rutas, para conectar.','warn'); return; }
+    ui.sel = { type:'edge', id };
+    renderGraph(); renderSide();
+    return;
+  }
+  // fondo: pan + deselect
+  pan = { sx:e.clientX, sy:e.clientY, vx:ui.view.x, vy:ui.view.y, moved:false };
+  $('#canvasArea').classList.add('panning');
+});
+window.addEventListener('pointermove', e=>{
+  if(drag){
+    if(Math.abs(e.clientX-drag.sx) + Math.abs(e.clientY-drag.sy) > 4){
+      drag.moved = true;
+      drag.el.classList.add('dragging');
+    }
+    if(drag.moved){
+      const n = nodeById(drag.id);
+      const w = screenToWorld(e.clientX, e.clientY);
+      n.x = Math.round(w.x - drag.ox);
+      n.y = Math.round(w.y - drag.oy);
+      updateNodePos(n);
+      refreshEdgePaths();
+    }
+    return;
+  }
+  if(pan){
+    const dx = e.clientX-pan.sx, dy = e.clientY-pan.sy;
+    if(Math.abs(dx)+Math.abs(dy) > 4) pan.moved = true;
+    ui.view.x = pan.vx + dx;
+    ui.view.y = pan.vy + dy;
+    applyView();
+  }
+});
+window.addEventListener('pointerup', e=>{
+  $('#canvasArea').classList.remove('panning');
+  if(drag){
+    const wasMoved = drag.moved, id = drag.id;
+    drag.el.classList.remove('dragging');
+    drag = null;
+    if(wasMoved){ save(); return; }
+    ui.sel = { type:'node', id };
+    renderGraph(); renderSide();
+    return;
+  }
+  if(pan){
+    const moved = pan.moved;
+    pan = null;
+    if(!moved){ ui.sel = null; renderGraph(); renderSide(); }
+  }
+});
+
+/* ---------- zoom controls ---------- */
+$('#zoomIn').addEventListener('click', ()=>{ const r=$('#canvasArea').getBoundingClientRect(); zoomAt(r.left+r.width/2, r.top+r.height/2, 1.25); });
+$('#zoomOut').addEventListener('click', ()=>{ const r=$('#canvasArea').getBoundingClientRect(); zoomAt(r.left+r.width/2, r.top+r.height/2, 0.8); });
+$('#zoomFit').addEventListener('click', zoomFit);
+$('#canvasArea').addEventListener('wheel', e=>{ e.preventDefault(); zoomAt(e.clientX, e.clientY, Math.exp(-e.deltaY*0.0012)); }, { passive:false });
+
+/* ---------- teclado ---------- */
+document.addEventListener('keydown', e=>{
+  const typing = /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName);
+  if(e.key==='Escape'){
+    if(ui.connectFrom){ ui.connectFrom = null; renderGraph(); toast('Conexión cancelada','ok',1600); }
+    else if(ui.sel){ ui.sel = null; renderGraph(); renderSide(); }
+    return;
+  }
+  if((e.key==='Delete' || e.key==='Backspace') && !typing && ui.sel){
+    e.preventDefault();
+    if(ui.sel.type==='node') deleteNode(ui.sel.id); else deleteEdge(ui.sel.id);
+    toast('Eliminado','ok',1500);
+    return;
+  }
+  if(e.key==='Enter' && (e.ctrlKey || e.metaKey)){ e.preventDefault(); run(); }
+});
+
+/* ---------- botones superiores ---------- */
+$('#btnRun').addEventListener('click', run);
+$('#btnExample').addEventListener('click', ()=>loadExample(false));
+$('#btnClear').addEventListener('click', clearAll);
+$('#resultsClose').addEventListener('click', ()=>$('#results').classList.remove('open'));
+$$('.palette .tool[data-tool]').forEach(b=>b.addEventListener('click', ()=>{
+  setTool(b.dataset.tool);
+  if(b.dataset.tool==='connect') toast('Toca el origen y luego el destino (Planta→Destino, Planta→Hub, Hub→Destino).','ok',3400);
+  if(b.dataset.tool==='delete') toast('Toca un nodo o ruta para borrarlo.','ok',2400);
+}));
+$('#addPlant').addEventListener('click', ()=>addNode('plant'));
+$('#addDest').addEventListener('click', ()=>addNode('dest'));
+$('#addHub').addEventListener('click', ()=>addNode('hub'));
+
+/* ---------- arranque ---------- */
+(function init(){
+  const had = loadSaved();
+  if(!had) { loadExample(true); }
+  else { renderGraph(); renderSide(); zoomFit(); }
+  applyView();
+})();
+// === APP END ===
+</script>
+</body>
+</html>
