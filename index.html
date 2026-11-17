@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Simulador de Transporte</title>
 <style>
 :root{
@@ -15,15 +15,24 @@
   --shadow:0 1px 2px rgba(15,23,42,.06),0 4px 14px rgba(15,23,42,.06);
   --shadow-lg:0 8px 30px rgba(15,23,42,.14);
   --radius:12px;
+  --topbar-h:56px;
+  --palette-w:72px;
+  --side-w:348px;
+  --res-h:310px;
   font-family:system-ui,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
 }
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%;overflow:hidden}
-body{background:var(--bg);color:var(--text);font-size:14px}
+body{background:var(--bg);color:var(--text);font-size:14px;
+  height:100vh;height:100dvh;
+  overscroll-behavior:none;
+  -webkit-tap-highlight-color:transparent}
 
 /* ===== Top bar ===== */
-.topbar{height:56px;background:var(--panel);border-bottom:1px solid var(--border);
-  display:flex;align-items:center;justify-content:space-between;padding:0 16px;position:relative;z-index:30}
+.topbar{height:var(--topbar-h);background:var(--panel);border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 calc(16px + env(safe-area-inset-right)) 0 calc(16px + env(safe-area-inset-left));
+  position:relative;z-index:30;user-select:none;-webkit-user-select:none}
 .brand{display:flex;align-items:center;gap:10px;min-width:0}
 .brand-icon{width:32px;height:32px;border-radius:9px;background:var(--accent);
   display:grid;place-items:center;flex:none}
@@ -31,9 +40,11 @@ body{background:var(--bg);color:var(--text);font-size:14px}
 .brand h1{font-size:15px;font-weight:700;letter-spacing:-.2px;white-space:nowrap}
 .brand-sub{font-size:11px;color:var(--muted);white-space:nowrap}
 .top-actions{display:flex;gap:8px;align-items:center}
+#btnMenu{display:none}
 .btn{border:1px solid var(--border);background:var(--panel);color:var(--text);
   font:inherit;font-weight:600;font-size:13px;padding:8px 14px;border-radius:9px;
-  cursor:pointer;display:inline-flex;align-items:center;gap:7px;transition:.15s}
+  cursor:pointer;display:inline-flex;align-items:center;gap:7px;transition:.15s;
+  touch-action:manipulation;white-space:nowrap}
 .btn:hover{background:#f8fafc;border-color:#cbd5e1}
 .btn:active{transform:translateY(1px)}
 .btn.ghost{background:transparent}
@@ -45,12 +56,14 @@ body{background:var(--bg);color:var(--text);font-size:14px}
 .btn.danger:hover{background:#fef2f2}
 
 /* ===== Workspace ===== */
-.workspace{display:flex;height:calc(100% - 56px);position:relative}
-.palette{width:72px;background:var(--panel);border-right:1px solid var(--border);
-  display:flex;flex-direction:column;align-items:center;padding:10px 0;gap:6px;z-index:20}
+.workspace{display:flex;height:calc(100% - var(--topbar-h));position:relative}
+.palette{width:var(--palette-w);background:var(--panel);border-right:1px solid var(--border);
+  display:flex;flex-direction:column;align-items:center;padding:10px 0;gap:6px;z-index:20;
+  padding-left:env(safe-area-inset-left);user-select:none;-webkit-user-select:none}
 .tool{width:56px;height:52px;border:1px solid transparent;background:transparent;border-radius:10px;
   cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
-  color:var(--muted);font-size:9px;font-weight:600;transition:.15s;font-family:inherit}
+  color:var(--muted);font-size:9px;font-weight:600;transition:.15s;font-family:inherit;
+  touch-action:manipulation;flex:none}
 .tool svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 .tool:hover{background:#f1f5f9;color:var(--text)}
 .tool.active{background:var(--accent-soft);color:var(--accent);border-color:#c7d2fe}
@@ -63,15 +76,19 @@ body{background:var(--bg);color:var(--text);font-size:14px}
 .canvas-area{flex:1;position:relative;overflow:hidden;
   background-color:#f8fafc;
   background-image:radial-gradient(#cbd5e1 1.2px,transparent 1.2px);
-  background-size:24px 24px;cursor:grab}
+  background-size:24px 24px;cursor:grab;
+  touch-action:none;
+  -webkit-user-select:none;user-select:none;
+  -webkit-touch-callout:none}
 .canvas-area.panning{cursor:grabbing}
 .canvas-area.tool-connect{cursor:crosshair}
 .canvas-area.tool-delete{cursor:not-allowed}
 #svg{position:absolute;inset:0;width:100%;height:100%;display:block}
-.zoom-controls{position:absolute;right:14px;bottom:14px;display:flex;flex-direction:column;gap:6px;z-index:10}
+.zoom-controls{position:absolute;right:14px;bottom:calc(14px + env(safe-area-inset-bottom));
+  display:flex;flex-direction:column;gap:6px;z-index:10}
 .zoom-controls button{width:34px;height:34px;border-radius:9px;border:1px solid var(--border);
   background:var(--panel);box-shadow:var(--shadow);cursor:pointer;font-size:15px;font-weight:700;
-  color:var(--muted);display:grid;place-items:center;font-family:inherit}
+  color:var(--muted);display:grid;place-items:center;font-family:inherit;touch-action:manipulation}
 .zoom-controls button:hover{color:var(--text);background:#f8fafc}
 .hint{position:absolute;left:50%;top:14px;transform:translateX(-50%);
   background:rgba(15,23,42,.82);color:#fff;font-size:12px;padding:7px 14px;border-radius:99px;
@@ -80,7 +97,7 @@ body{background:var(--bg);color:var(--text);font-size:14px}
 .toast{position:absolute;left:50%;top:60px;transform:translateX(-50%) translateY(-8px);
   background:#fff;border:1px solid var(--border);border-left:4px solid var(--accent);
   padding:10px 16px;border-radius:10px;box-shadow:var(--shadow-lg);font-size:13px;font-weight:600;
-  opacity:0;pointer-events:none;transition:.25s;z-index:40;max-width:440px}
+  opacity:0;pointer-events:none;transition:.25s;z-index:26;max-width:440px}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 .toast.error{border-left-color:var(--bad);color:#991b1b}
 .toast.warn{border-left-color:var(--warn);color:#92400e}
@@ -116,11 +133,16 @@ body{background:var(--bg);color:var(--text);font-size:14px}
 .edge.hubleg .e-line{stroke:#d97706;stroke-dasharray:5 4}
 .edge.hubleg.active .e-line{stroke:var(--good);stroke-dasharray:11 7;animation:flowdash .55s linear infinite}
 .connect-src .n-bg{stroke:var(--accent)!important;stroke-width:2.5!important;stroke-dasharray:6 4}
+.connect-preview{stroke:var(--accent);stroke-width:2.2;stroke-dasharray:6 4;fill:none;pointer-events:none}
 
 /* ===== Side panel ===== */
-.side{width:308px;background:var(--panel);border-left:1px solid var(--border);
-  overflow-y:auto;z-index:20;flex:none}
-.side-head{padding:14px 16px 10px;border-bottom:1px solid var(--border);
+.side{width:var(--side-w);background:var(--panel);border-left:1px solid var(--border);
+  overflow-y:auto;z-index:20;flex:none;position:relative}
+/* Sheet y menú: solo visibles en móvil (display:contents en escritorio) */
+.sheet,.sheet-host{display:contents}
+.sheet-chrome{display:none}
+.menu-backdrop,.menu-card{display:none}
+.side-head{padding:12px 16px 10px;border-bottom:1px solid var(--border);
   display:flex;align-items:center;justify-content:space-between;gap:8px;position:sticky;top:0;background:var(--panel);z-index:2}
 .side-head h2{font-size:12px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:var(--muted)}
 .side-body{padding:14px 16px 24px}
@@ -128,58 +150,87 @@ body{background:var(--bg);color:var(--text);font-size:14px}
 .badge.plant{background:var(--plant-bg);color:var(--plant-dark)}
 .badge.dest{background:var(--dest-bg);color:var(--dest-dark)}
 .badge.hub{background:var(--hub-bg);color:var(--hub-dark)}
-.field{margin-bottom:12px}
-.field label{display:block;font-size:11px;font-weight:700;color:var(--muted);margin-bottom:5px;letter-spacing:.3px}
-.field input,.field select{width:100%;border:1px solid var(--border);border-radius:9px;
-  padding:9px 11px;font:inherit;font-size:14px;background:#fff;color:var(--text);transition:.15s}
+.inspector-card{border:1px solid #c7d2fe;background:#f8faff;border-radius:12px;padding:12px 13px;margin-bottom:14px;box-shadow:0 2px 8px rgba(79,70,229,.06)}
+.inspector-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px}
+.inspector-head .i-title{font-size:12px;font-weight:800;color:var(--text);display:flex;align-items:center;gap:6px}
+.inspector-close{border:none;background:#e2e8f0;color:#475569;width:22px;height:22px;border-radius:6px;cursor:pointer;font-size:12px;font-weight:700;display:grid;place-items:center}
+.inspector-close:hover{background:#cbd5e1;color:var(--text)}
+.field{margin-bottom:10px}
+.field label{display:block;font-size:10.5px;font-weight:700;color:var(--muted);margin-bottom:4px;letter-spacing:.3px}
+.field input,.field select{width:100%;border:1px solid var(--border);border-radius:8px;
+  padding:7px 10px;font:inherit;font-size:13.5px;background:#fff;color:var(--text);transition:.15s}
 .field input:focus,.field select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
 .field .row{display:flex;gap:8px}
 .field .row .field{flex:1;margin-bottom:0}
-.side-actions{display:flex;gap:8px;margin-top:16px}
-.side-actions .btn{flex:1;justify-content:center}
+.side-actions{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap}
+.side-actions .btn{flex:1;justify-content:center;padding:6px 10px;font-size:12px}
 .muted-note{font-size:12px;color:var(--muted);line-height:1.5;background:#f8fafc;
   border:1px dashed var(--border);border-radius:10px;padding:10px 12px}
-.empty-state{text-align:center;padding:30px 10px;color:var(--muted)}
-.empty-state svg{width:44px;height:44px;stroke:#cbd5e1;fill:none;stroke-width:1.5;margin-bottom:10px}
+.empty-state{text-align:center;padding:24px 10px;color:var(--muted)}
+.empty-state svg{width:40px;height:40px;stroke:#cbd5e1;fill:none;stroke-width:1.5;margin-bottom:8px}
 .empty-state p{font-size:13px;line-height:1.55}
 
 /* ===== Data matrix ===== */
+.matrix-toolbar{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:8px;flex-wrap:wrap}
+.matrix-toolbar .mt-title{font-size:11px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+.matrix-toolbar .mt-btns{display:flex;gap:4px}
+.mini-btn{border:1px solid var(--border);background:#f8fafc;color:#475569;font:inherit;font-size:11px;font-weight:700;
+  padding:4px 8px;border-radius:6px;cursor:pointer;transition:.15s}
+.mini-btn:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-soft)}
+.mini-btn.danger:hover{border-color:var(--bad);color:var(--bad);background:#fef2f2}
 .matrix-wrap{overflow-x:auto;margin:0 -4px}
 table.matrix{border-collapse:separate;border-spacing:0;width:100%;font-size:13px}
-table.matrix th,table.matrix td{padding:5px 4px;text-align:center}
+table.matrix th,table.matrix td{padding:4px 3px;text-align:center;vertical-align:middle}
 table.matrix th{font-size:10px;font-weight:800;color:var(--muted);letter-spacing:.4px;text-transform:uppercase}
 table.matrix th.rh{text-align:left;padding-left:2px}
-table.matrix td input{width:46px;text-align:center;border:1px solid transparent;border-radius:7px;
-  padding:6px 3px;font:inherit;font-size:13px;font-weight:600;background:transparent;color:var(--text)}
-table.matrix td input:hover{background:#f8fafc;border-color:var(--border)}
+table.matrix td input{width:48px;text-align:center;border:1px solid var(--border);border-radius:7px;
+  padding:5px 3px;font:inherit;font-size:13px;font-weight:600;background:#fff;color:var(--text)}
+table.matrix td input:hover{border-color:#94a3b8}
 table.matrix td input:focus{outline:none;background:#fff;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
-table.matrix td input.fixed{background:#f1f5f9;font-weight:700;color:#334155}
-table.matrix .row-label{font-weight:800;font-size:12px;text-align:left;padding-left:2px}
+table.matrix td input.fixed{background:#f1f5f9;font-weight:700;color:#334155;border-color:transparent}
+table.matrix td input.fixed:hover{border-color:var(--border);background:#fff}
+table.matrix .row-label{font-weight:800;font-size:12px;text-align:left;padding-left:2px;white-space:nowrap}
 table.matrix .row-label small{display:block;font-weight:600;color:var(--muted);font-size:10px}
-table.matrix td.blocked button{width:46px;border:1px dashed #cbd5e1;background:#f8fafc;color:#94a3b8;
-  border-radius:7px;padding:6px 0;font:inherit;font-size:13px;cursor:pointer}
+table.matrix td.blocked button{width:48px;border:1px dashed #cbd5e1;background:#f8fafc;color:#64748b;
+  border-radius:7px;padding:5px 2px;font:inherit;font-size:12px;font-weight:700;cursor:pointer;line-height:1.15}
 table.matrix td.blocked button:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-soft)}
+table.matrix td.blocked .via-hint{display:block;font-size:9.5px;color:var(--hub-dark);font-weight:700;margin-top:2px;white-space:nowrap}
 table.matrix tfoot td{font-size:11px;font-weight:800;color:var(--muted);padding-top:8px}
 table.matrix tfoot td.bal-ok{color:var(--good)}
 table.matrix tfoot td.bal-bad{color:var(--bad)}
 table.matrix .tot{font-weight:800;font-size:12px;color:#334155}
-table.matrix .cell-del{position:relative}
-table.matrix .cell-del .x{position:absolute;top:0;right:0;font-size:9px;color:#cbd5e1;cursor:pointer;
-  opacity:0;transition:.15s;line-height:1}
-table.matrix tr:hover .cell-del .x{opacity:1}
-table.matrix .cell-del .x:hover{color:var(--bad)}
+table.matrix .cell-box{position:relative;display:inline-flex;flex-direction:column;align-items:center}
+table.matrix .cell-box .x{position:absolute;top:-5px;right:-5px;width:15px;height:15px;border-radius:99px;
+  background:#fee2e2;color:#b91c1c;border:1px solid #fecaca;font-size:10px;font-weight:800;cursor:pointer;
+  opacity:0;transition:.15s;line-height:13px;text-align:center;padding:0;z-index:2}
+table.matrix td:hover .cell-box .x{opacity:1}
+table.matrix .cell-box .x:hover{background:var(--bad);color:#fff;border-color:var(--bad)}
+table.matrix .cell-box .via-tag{font-size:9px;color:var(--hub-dark);background:var(--hub-bg);border:1px solid #fde68a;
+  border-radius:4px;padding:0 4px;margin-top:2px;font-weight:700;white-space:nowrap}
+.hub-section{margin-top:14px;padding-top:12px;border-top:1px solid var(--border)}
+.hub-section h4{font-size:11px;font-weight:800;color:var(--hub-dark);text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between}
+.hub-sub{font-size:10.5px;font-weight:700;color:var(--muted);margin:8px 0 4px}
 .mtx-legend{display:flex;gap:12px;margin-top:10px;font-size:10.5px;color:var(--muted);flex-wrap:wrap}
 .mtx-legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:4px;vertical-align:-1px}
 
 /* ===== Results ===== */
-.results{position:absolute;left:72px;right:308px;bottom:0;height:0;overflow:hidden;
+.results{position:absolute;left:var(--palette-w);right:var(--side-w);bottom:0;height:0;overflow:hidden;
   background:var(--panel);border-top:1px solid var(--border);box-shadow:0 -8px 30px rgba(15,23,42,.1);
-  transition:height .35s cubic-bezier(.4,0,.2,1);z-index:25}
-.results.open{height:304px}
-.results-inner{height:304px;overflow-y:auto;padding:14px 20px 20px}
-.results-close{position:absolute;right:12px;top:10px;border:none;background:#f1f5f9;
-  width:26px;height:26px;border-radius:7px;cursor:pointer;color:var(--muted);font-size:14px;font-weight:700}
-.results-close:hover{background:#e2e8f0;color:var(--text)}
+  transition:height .3s cubic-bezier(.4,0,.2,1);z-index:25;display:flex;flex-direction:column}
+.results.open{height:var(--res-h)}
+.results.open.minimized{height:42px}
+.results-bar{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 16px;
+  background:#f8fafc;border-bottom:1px solid var(--border);flex:none;min-height:42px}
+.results-bar .rb-left{display:flex;align-items:center;gap:10px;min-width:0;flex-wrap:wrap}
+.results-bar .rb-live{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;color:#047857;
+  background:#ecfdf5;border:1px solid #a7f3d0;padding:2px 8px;border-radius:99px}
+.results-bar .rb-live i{width:7px;height:7px;border-radius:99px;background:#10b981;display:inline-block}
+.results-bar .rb-sum{font-size:12px;font-weight:800;color:var(--text)}
+.results-bar .rb-actions{display:flex;align-items:center;gap:6px}
+.results-btn{border:1px solid var(--border);background:#fff;height:26px;padding:0 9px;border-radius:7px;
+  cursor:pointer;color:var(--muted);font:inherit;font-size:11.5px;font-weight:700;display:inline-flex;align-items:center;gap:4px}
+.results-btn:hover{background:#e2e8f0;color:var(--text)}
+.results-inner{flex:1;overflow-y:auto;padding:14px 20px calc(20px + env(safe-area-inset-bottom))}
 .results h3{font-size:11px;font-weight:800;letter-spacing:.7px;text-transform:uppercase;color:var(--muted);margin-bottom:10px}
 .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px}
 .kpi{border:1px solid var(--border);border-radius:12px;padding:11px 14px;background:#fff;transition:.2s}
@@ -204,7 +255,8 @@ table.matrix .cell-del .x:hover{color:var(--bad)}
 .bar-row .b-val{font-weight:800;text-align:right;font-variant-numeric:tabular-nums}
 .tabs{display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap}
 .tab{border:1px solid var(--border);background:#fff;border-radius:8px;padding:6px 12px;
-  font:inherit;font-size:12px;font-weight:700;color:var(--muted);cursor:pointer;transition:.15s}
+  font:inherit;font-size:12px;font-weight:700;color:var(--muted);cursor:pointer;transition:.15s;
+  touch-action:manipulation}
 .tab:hover{border-color:#cbd5e1;color:var(--text)}
 .tab.active{background:var(--accent);border-color:var(--accent);color:#fff}
 table.alloc{border-collapse:collapse;width:100%;font-size:13px}
@@ -240,10 +292,125 @@ details.more .more-body{padding:11px 13px}
 .notice svg{width:15px;height:15px;flex:none;margin-top:1px;stroke:currentColor;fill:none;stroke-width:2}
 
 @media (max-width:1100px){
-  .side{width:260px}
-  .results{right:260px}
+  :root{--side-w:260px}
   .kpis{grid-template-columns:repeat(2,1fr)}
   .res-cols{grid-template-columns:1fr}
+}
+
+/* ===== Tablet retrato / móvil ===== */
+@media (max-width:768px){
+  .brand-sub{display:none}
+  .brand h1{font-size:14px}
+  .topbar{padding:0 calc(10px + env(safe-area-inset-right)) 0 calc(10px + env(safe-area-inset-left))}
+  .top-actions{gap:6px}
+  .btn{padding:8px 10px;font-size:12.5px;gap:5px}
+  #btnMenu{display:inline-flex;padding:8px 11px;font-size:15px}
+  #btnExample,#btnExampleHub,#btnClear{display:none}
+
+  /* Workspace en columna: toolbar de herramientas arriba (estilo GeoGebra), lienzo debajo */
+  .workspace{flex-direction:column}
+  .palette{flex-direction:row;width:100%;height:auto;min-height:54px;
+    border-right:none;border-bottom:1px solid var(--border);
+    padding:6px calc(8px + env(safe-area-inset-right)) 6px calc(8px + env(safe-area-inset-left));
+    gap:4px;justify-content:space-evenly;overflow-x:auto;
+    scrollbar-width:none;-webkit-overflow-scrolling:touch}
+  .palette::-webkit-scrollbar{display:none}
+  .tool{width:52px;height:46px;gap:2px;font-size:8.5px}
+  .tool svg{width:18px;height:18px}
+  .palette .sep{width:1px;height:26px;margin:0 3px}
+
+  /* Bottom sheet arrastrable con 3 alturas: peek / medio / completo */
+  .sheet{display:flex;flex-direction:column;position:absolute;left:0;right:0;bottom:0;
+    height:var(--sheet-h,56px);z-index:35;overflow:hidden;
+    background:var(--panel);border-top:1px solid var(--border);
+    border-radius:16px 16px 0 0;box-shadow:0 -10px 34px rgba(15,23,42,.2);
+    padding-bottom:env(safe-area-inset-bottom);
+    transform:translateY(calc(100% + 16px));
+    transition:transform .32s cubic-bezier(.32,.72,0,1),height .32s cubic-bezier(.32,.72,0,1)}
+  body.sheet-open .sheet{transform:none}
+  body.sheet-open{--sheet-lift:56px}
+  body.snap-peek{--sheet-h:56px}
+  body.snap-half{--sheet-h:55dvh}
+  body.snap-full{--sheet-h:88dvh}
+  .sheet.dragging{transition:none}
+
+  .sheet-chrome{display:block;flex:none;position:relative;z-index:2;
+    background:var(--panel);border-bottom:1px solid var(--border);padding-bottom:5px}
+  .sheet-grip{height:17px;display:grid;place-items:center;touch-action:none;cursor:grab;
+    -webkit-user-select:none;user-select:none}
+  .sheet-grip i{width:40px;height:4px;border-radius:99px;background:#cbd5e1;display:block}
+  .sheet-grip:active{cursor:grabbing}
+  .sheet-bar{display:flex;align-items:center;gap:8px;padding:2px 10px 0}
+  .sheet-tabs{display:flex;gap:6px;flex:none}
+  .sheet-tab{border:1px solid var(--border);background:#f8fafc;color:var(--muted);
+    font:inherit;font-size:12px;font-weight:700;padding:6px 12px;border-radius:99px;
+    cursor:pointer;touch-action:manipulation}
+  .sheet-tab.active{background:var(--accent-soft);border-color:#c7d2fe;color:var(--accent)}
+  .sheet-peek{flex:1;min-width:0;text-align:right;font-size:11px;font-weight:700;
+    color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+    font-variant-numeric:tabular-nums}
+  .sheet-close{flex:none;width:30px;height:30px;border:none;background:#f1f5f9;
+    border-radius:8px;color:var(--muted);font-size:14px;font-weight:700;cursor:pointer;
+    touch-action:manipulation}
+  .sheet-close:active{background:#e2e8f0}
+
+  .sheet-host{display:flex;flex:1;min-height:0;position:relative}
+  .side,.results{position:absolute;inset:0;width:auto;height:auto;
+    border:none;border-radius:0;box-shadow:none;transition:none}
+  .side{overflow-y:auto;overscroll-behavior:contain}
+  body.sheet-datos .side{display:block}
+  body.sheet-datos .results{display:none}
+  body.sheet-resultados .side{display:none}
+  body.sheet-resultados .results{display:flex}
+  .results,.results.open,.results.open.minimized{height:auto}
+  #resultsToggleMin,#resultsClose{display:none}
+  .results-inner{padding:14px 14px calc(16px + env(safe-area-inset-bottom));overscroll-behavior:contain}
+
+  /* Menú ☰ estilo GeoGebra */
+  .menu-backdrop,.menu-card{display:block}
+  .menu-backdrop{position:fixed;inset:0;background:rgba(15,23,42,.45);z-index:48;
+    opacity:0;visibility:hidden;pointer-events:none;transition:opacity .22s,visibility .22s}
+  .menu-card{position:fixed;left:50%;top:50%;z-index:49;width:min(300px,calc(100vw - 48px));
+    background:var(--panel);border:1px solid var(--border);border-radius:16px;
+    box-shadow:var(--shadow-lg);padding:8px;
+    transform:translate(-50%,-50%) scale(.96);opacity:0;visibility:hidden;pointer-events:none;
+    transition:opacity .2s,transform .2s,visibility .2s}
+  body.menu-open .menu-backdrop{opacity:1;visibility:visible;pointer-events:auto}
+  body.menu-open .menu-card{opacity:1;visibility:visible;pointer-events:auto;
+    transform:translate(-50%,-50%) scale(1)}
+  .menu-item{display:flex;align-items:center;gap:11px;width:100%;border:none;background:transparent;
+    font:inherit;font-size:14px;font-weight:600;color:var(--text);padding:12px 12px;
+    border-radius:10px;cursor:pointer;text-align:left;touch-action:manipulation}
+  .menu-item:active{background:#f1f5f9}
+  .menu-item svg{width:17px;height:17px;flex:none;fill:none;stroke:var(--muted);
+    stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+  .menu-sep{height:1px;background:var(--border);margin:6px 10px}
+
+  /* El toast pasa por encima del sheet */
+  .toast{z-index:40;max-width:calc(100% - 32px);font-size:12.5px}
+  .zoom-controls{bottom:calc(14px + env(safe-area-inset-bottom) + var(--sheet-lift,0px))}
+
+  /* Textos largos */
+  .hint{white-space:normal;max-width:calc(100% - 24px);text-align:center;line-height:1.45}
+
+  /* Evita el auto-zoom de iOS al enfocar inputs */
+  .field input,.field select,table.matrix td input{font-size:16px}
+  table.matrix th,table.matrix td{padding:5px 2px}
+  table.matrix td input,table.matrix td.blocked button{width:40px}
+  .mtx-legend{gap:8px;font-size:10px}
+}
+
+/* ===== Teléfonos pequeños ===== */
+@media (max-width:420px){
+  .topbar{padding:0 calc(8px + env(safe-area-inset-right)) 0 calc(8px + env(safe-area-inset-left))}
+  .btn{padding:8px 9px;font-size:12px}
+  .btn.primary svg{width:12px;height:12px}
+  .kpis{gap:8px}
+  .kpi{padding:9px 11px}
+  .kpi .k-value{font-size:21px}
+  .bar-row{grid-template-columns:96px 1fr 56px;gap:8px}
+  .results h3{margin-bottom:8px}
+  .tab{padding:6px 9px;font-size:11.5px}
 }
 </style>
 </head>
@@ -260,11 +427,13 @@ details.more .more-body{padding:11px 13px}
     </div>
   </div>
   <div class="top-actions">
-    <button class="btn ghost" id="btnExample" title="Cargar el caso de la presentación">Ejemplo</button>
+    <button class="btn ghost" id="btnMenu" title="Menú" aria-haspopup="menu" aria-expanded="false" aria-controls="menuCard" aria-label="Menú">☰</button>
+    <button class="btn ghost" id="btnExample" title="Cargar caso de ejemplo clásico">Ejemplo</button>
+    <button class="btn ghost" id="btnExampleHub" title="Cargar caso de ejemplo con Hub de transbordo">Ejemplo Hub</button>
     <button class="btn ghost" id="btnClear" title="Borrar todo">Limpiar</button>
     <button class="btn primary" id="btnRun" title="Calcular solución (Ctrl+Enter)">
       <svg viewBox="0 0 24 24"><path d="M7 4.5v15l13-7.5z"/></svg>
-      <span>Run</span>
+      <span id="btnRunLabel">Resolver</span>
     </button>
   </div>
 </header>
@@ -274,7 +443,7 @@ details.more .more-body{padding:11px 13px}
     <button class="tool active" data-tool="select" title="Seleccionar y arrastrar">
       <svg viewBox="0 0 24 24"><path d="M5 3l14 8.5-6.2 1.4L10 20z"/></svg><span>Mover</span>
     </button>
-    <button class="tool" data-tool="connect" title="Clic en origen, luego en destino">
+    <button class="tool" data-tool="connect" title="Clic o arrastrar entre origen y destino para conectar ruta">
       <svg viewBox="0 0 24 24"><circle cx="6" cy="18" r="2.5"/><circle cx="18" cy="6" r="2.5"/><path d="M8 16l8-8"/></svg><span>Ruta</span>
     </button>
     <button class="tool" data-tool="delete" title="Clic para borrar nodo o ruta">
@@ -287,7 +456,7 @@ details.more .more-body{padding:11px 13px}
     <button class="tool dest" id="addDest" title="Agregar destino (demanda)">
       <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3.4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg><span>Destino</span>
     </button>
-    <button class="tool hub" id="addHub" title="Agregar hub intermedio (balance de flujo)">
+    <button class="tool hub" id="addHub" title="Agregar hub intermedio (transbordo)">
       <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="2.6"/><circle cx="5" cy="6" r="2.2"/><circle cx="19" cy="6" r="2.2"/><circle cx="5" cy="18" r="2.2"/><circle cx="19" cy="18" r="2.2"/><path d="M6.6 7.6l3.7 3M17.4 7.6l-3.7 3M6.6 16.4l3.7-3M17.4 16.4l-3.7-3"/></svg><span>Hub</span>
     </button>
   </nav>
@@ -307,6 +476,7 @@ details.more .more-body{padding:11px 13px}
       </defs>
       <g id="world">
         <g id="edgesLayer"></g>
+        <line id="connectPreview" class="connect-preview" x1="0" y1="0" x2="0" y2="0" marker-end="url(#arrowSel)" style="display:none"/>
         <g id="nodesLayer"></g>
       </g>
     </svg>
@@ -315,16 +485,62 @@ details.more .more-body{padding:11px 13px}
       <button id="zoomOut" title="Alejar">−</button>
       <button id="zoomFit" title="Ajustar vista">⌂</button>
     </div>
-    <div class="hint" id="hint">Arrastra los nodos · usa los botones de la izquierda para agregar · edita los datos en el panel derecho</div>
+    <div class="hint" id="hint">Agrega plantas y destinos · usa «Ruta» o la tabla para conectar · edita en cualquier momento</div>
     <div class="toast" id="toast"></div>
   </div>
 
-  <aside class="side" id="side"></aside>
+  <div class="sheet" id="sheet">
+    <div class="sheet-chrome" id="sheetChrome">
+      <div class="sheet-grip" id="sheetGrip" role="separator" aria-label="Arrastrar para redimensionar el panel"><i></i></div>
+      <div class="sheet-bar">
+        <div class="sheet-tabs">
+          <button class="sheet-tab active" data-sheet="datos">Datos</button>
+          <button class="sheet-tab" data-sheet="resultados">Resultados</button>
+        </div>
+        <span class="sheet-peek" id="sheetPeek"></span>
+        <button class="sheet-close" id="sheetClose" title="Cerrar panel">✕</button>
+      </div>
+    </div>
+    <div class="sheet-host" id="sheetHost">
+      <aside class="side" id="side"></aside>
+      <section class="results" id="results">
+        <div class="results-bar">
+          <div class="rb-left">
+            <span class="rb-live"><i></i>Tiempo real: puedes seguir editando</span>
+            <span class="rb-sum" id="resultsBarSum"></span>
+          </div>
+          <div class="rb-actions">
+            <button class="results-btn" id="resultsToggleMin" title="Minimizar / Expandir panel de resultados">▼ Minimizar</button>
+            <button class="results-btn" id="resultsClose" title="Ocultar resultados y flujos">✕ Ocultar</button>
+          </div>
+        </div>
+        <div class="results-inner" id="resultsInner"></div>
+      </section>
+    </div>
+  </div>
+</div>
 
-  <section class="results" id="results">
-    <button class="results-close" id="resultsClose" title="Cerrar">✕</button>
-    <div class="results-inner" id="resultsInner"></div>
-  </section>
+<div class="menu-backdrop" id="menuBackdrop"></div>
+<div class="menu-card" id="menuCard" role="menu" aria-label="Menú">
+  <button class="menu-item" id="mExample" role="menuitem">
+    <svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+    Ejemplo clásico</button>
+  <button class="menu-item" id="mExampleHub" role="menuitem">
+    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><circle cx="5" cy="6" r="2"/><circle cx="19" cy="6" r="2"/><circle cx="5" cy="18" r="2"/><circle cx="19" cy="18" r="2"/><path d="M7 7.5l3 2.5M17 7.5l-3 2.5M7 16.5l3-2.5M17 16.5l-3-2.5"/></svg>
+    Ejemplo con Hub</button>
+  <button class="menu-item" id="mClear" role="menuitem">
+    <svg viewBox="0 0 24 24"><path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2M6 6l1 14a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-14"/></svg>
+    Limpiar</button>
+  <button class="menu-item" id="mFit" role="menuitem">
+    <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 22V12h6v10"/></svg>
+    Ajustar vista</button>
+  <div class="menu-sep"></div>
+  <button class="menu-item" data-sheet="datos" role="menuitem">
+    <svg viewBox="0 0 24 24"><path d="M3 3h18v18H3z"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></svg>
+    Datos</button>
+  <button class="menu-item" data-sheet="resultados" role="menuitem">
+    <svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M7 16v-5M12 16V8M17 16v-3"/></svg>
+    Resultados</button>
 </div>
 
 <script>
@@ -336,46 +552,92 @@ function sum(a){ return a.reduce((s,v)=>s+v,0); }
 function cloneMatrix(x){ return x.map(r=>r.slice()); }
 
 /* Construye la matriz de costos/capacidades del estado del lienzo.
-   Ruta directa: planta -> destino. Ruta vía hub: c(planta,hub)+c(hub,destino) (mínimo entre hubs).
-   Retorna { plants, dests, cost, cap, via, warnings }  (cost[i][j] = null => bloqueada) */
+   Soporta rutas directas (Planta→Destino) y rutas de transbordo vía 1 o más Hubs (Planta→Hub→...→Destino).
+   Retorna { plants, dests, hubs, cost, cap, via, viaName, directEdge, viaBest, allPaths, warnings } */
 function buildModel(state){
   const plants = state.nodes.filter(n=>n.type==='plant');
-  const dests   = state.nodes.filter(n=>n.type==='dest');
-  const hubs    = state.nodes.filter(n=>n.type==='hub');
+  const dests  = state.nodes.filter(n=>n.type==='dest');
+  const hubs   = state.nodes.filter(n=>n.type==='hub');
   const m = plants.length, n = dests.length;
-  const cost = Array.from({length:m},()=>Array(n).fill(null));
-  const cap  = Array.from({length:m},()=>Array(n).fill(null));
-  const via  = Array.from({length:m},()=>Array(n).fill(null));
+  const cost       = Array.from({length:m},()=>Array(n).fill(null));
+  const cap        = Array.from({length:m},()=>Array(n).fill(null));
+  const via        = Array.from({length:m},()=>Array(n).fill(null));
+  const viaName    = Array.from({length:m},()=>Array(n).fill(null));
+  const directEdge = Array.from({length:m},()=>Array(n).fill(null));
+  const viaBest    = Array.from({length:m},()=>Array(n).fill(null));
+  const allPaths   = Array.from({length:m},()=>Array.from({length:n},()=>[]));
   const warnings = [];
-  const findEdge = (a,b)=> state.edges.find(e=>e.from===a && e.to===b) || null;
+  const nodeMap = {};
+  state.nodes.forEach(nd=>{ nodeMap[nd.id] = nd; });
+  const outEdges = {};
+  state.nodes.forEach(nd=>{ outEdges[nd.id] = []; });
+  state.edges.forEach(e=>{ if(outEdges[e.from]) outEdges[e.from].push(e); });
+
   for(let i=0;i<m;i++){
+    const pId = plants[i].id;
     for(let j=0;j<n;j++){
-      let best = null;
-      const de = findEdge(plants[i].id, dests[j].id);
-      if(de) best = { cost:de.cost, cap:(de.capacity==null?null:de.capacity), via:null };
-      for(const h of hubs){
-        const e1 = findEdge(plants[i].id, h.id);
-        const e2 = findEdge(h.id, dests[j].id);
-        if(e1 && e2){
-          const c = e1.cost + e2.cost;
-          let cp = null;
-          if(e1.capacity!=null || e2.capacity!=null)
-            cp = Math.min(e1.capacity==null?Infinity:e1.capacity, e2.capacity==null?Infinity:e2.capacity);
-          if(!best || c < best.cost) best = { cost:c, cap:cp, via:h };
+      const dId = dests[j].id;
+      const paths = [];
+      // DFS para encontrar todos los caminos simples de P_i a D_j (directo o vía hubs)
+      function dfs(currId, visited, edgeList, hubList, totalCost, minCap){
+        const edges = outEdges[currId] || [];
+        for(const e of edges){
+          if(e.to === dId){
+            const nc = totalCost + e.cost;
+            const ncap = e.capacity==null ? minCap : (minCap==null ? e.capacity : Math.min(minCap, e.capacity));
+            paths.push({
+              cost: Math.round(nc*1e6)/1e6,
+              cap: ncap,
+              edges: [...edgeList, e],
+              hubs: hubList.slice(),
+              viaId: hubList.length ? hubList[0].id : null,
+              viaLabel: hubList.length ? hubList.map(h=>h.name).join('→') : null
+            });
+          } else if(nodeMap[e.to] && nodeMap[e.to].type==='hub' && !visited.has(e.to)){
+            visited.add(e.to);
+            const ncap = e.capacity==null ? minCap : (minCap==null ? e.capacity : Math.min(minCap, e.capacity));
+            dfs(e.to, visited, [...edgeList, e], [...hubList, nodeMap[e.to]], totalCost + e.cost, ncap);
+            visited.delete(e.to);
+          }
         }
       }
-      if(best){ cost[i][j]=best.cost; cap[i][j]=best.cap; via[i][j]=best.via?best.via.id:null; }
+      dfs(pId, new Set([pId]), [], [], 0, null);
+      // Ordenar por menor costo; en empate, menor número de saltos
+      paths.sort((a,b)=> (a.cost - b.cost) || (a.edges.length - b.edges.length));
+      allPaths[i][j] = paths;
+      const dir = paths.find(pt=>pt.hubs.length===0);
+      if(dir) directEdge[i][j] = dir.edges[0];
+      const vBest = paths.find(pt=>pt.hubs.length>0);
+      if(vBest) viaBest[i][j] = vBest;
+      // Elegir la mejor ruta usable (con capacidad > 0)
+      const usablePaths = paths.filter(pt=>pt.cap===null || pt.cap > EPS);
+      const best = usablePaths[0] || paths[0] || null;
+      if(best){
+        cost[i][j] = best.cost;
+        // Si hay caminos paralelos, la capacidad total disponible entre P_i y D_j es la suma de capacidades
+        if(usablePaths.some(pt=>pt.cap===null)) cap[i][j] = null;
+        else if(usablePaths.length) cap[i][j] = usablePaths.reduce((s,pt)=>s+(pt.cap||0), 0);
+        else cap[i][j] = best.cap;
+        via[i][j] = best.viaId;
+        viaName[i][j] = best.viaLabel;
+      }
     }
   }
   if(hubs.length && m && n){
-    const viaCount = via.flat().filter(v=>v!==null).length;
-    const directCount = via.flat().filter((v,idx)=>{
-      const i=Math.floor(idx/n), j=idx%n; return v===null && cost[i][j]!==null;
-    }).length;
-    if(!viaCount && !directCount) warnings.push('El hub no tiene rutas completas (planta→hub y hub→destino).');
-    else if(!viaCount) warnings.push('El hub existe pero ninguna ruta lo usa.');
+    for(const h of hubs){
+      const hasIn  = state.edges.some(e=>e.to===h.id);
+      const hasOut = state.edges.some(e=>e.from===h.id);
+      if(!hasIn && !hasOut) warnings.push(`El hub ${h.name} no tiene rutas conectadas. Usa «Ruta» o la tabla para conectar Planta→${h.name} y ${h.name}→Destino.`);
+      else if(!hasIn) warnings.push(`Al hub ${h.name} le falta al menos una ruta de entrada (Planta → ${h.name}).`);
+      else if(!hasOut) warnings.push(`Al hub ${h.name} le falta al menos una ruta de salida (${h.name} → Destino).`);
+    }
+    const anyViaPossible = viaBest.flat().some(v=>v!==null);
+    const anyViaChosen = via.flat().some(v=>v!==null);
+    if(anyViaPossible && !anyViaChosen){
+      warnings.push('Las rutas directas actuales tienen menor o igual costo que pasar por el hub (el solver elige automáticamente la vía más económica).');
+    }
   }
-  return { plants, dests, hubs, cost, cap, via, warnings };
+  return { plants, dests, hubs, cost, cap, via, viaName, directEdge, viaBest, allPaths, warnings };
 }
 
 /* Ajusta oferta/demanda desbalanceada con nodos ficticios (costo 0). */
@@ -838,26 +1100,24 @@ function solveFull(model){
   return out;
 }
 
-/* Flujos por arista del lienzo a partir de la asignación (para animar/hub). */
+/* Flujos por arista del lienzo a partir de la asignación (soporta rutas directas y transbordo por 1 o más hubs). */
 function edgeFlows(state, model, x){
   const flows = {}; // edgeId -> unidades
   const m = model.plants.length, n = model.dests.length;
-  const pIdx = {}, dIdx = {};
-  model.plants.forEach((p,i)=>pIdx[p.id]=i);
-  model.dests.forEach((d,j)=>dIdx[d.id]=j);
-  const findEdge = (a,b)=> state.edges.find(e=>e.from===a && e.to===b);
   for(let i=0;i<m;i++) for(let j=0;j<n;j++){
-    const q = x[i][j];
-    if(!(q > EPS)) continue;
-    const plant = model.plants[i], dest = model.dests[j];
-    const hubId = model.via[i][j];
-    if(hubId){
-      const e1 = findEdge(plant.id, hubId), e2 = findEdge(hubId, dest.id);
-      if(e1) flows[e1.id] = (flows[e1.id]||0) + q;
-      if(e2) flows[e2.id] = (flows[e2.id]||0) + q;
-    } else {
-      const de = findEdge(plant.id, dest.id);
-      if(de) flows[de.id] = (flows[de.id]||0) + q;
+    let rem = x[i] ? (x[i][j]||0) : 0;
+    if(!(rem > EPS)) continue;
+    const paths = (model.allPaths && model.allPaths[i] && model.allPaths[i][j]) || [];
+    for(let k=0; k<paths.length && rem > EPS; k++){
+      const pt = paths[k];
+      const lim = (pt.cap!=null && k < paths.length - 1) ? pt.cap : Infinity;
+      const send = Math.min(rem, lim);
+      if(send > EPS){
+        for(const edge of pt.edges){
+          flows[edge.id] = (flows[edge.id]||0) + send;
+        }
+        rem -= send;
+      }
     }
   }
   return flows;
@@ -921,7 +1181,8 @@ const state = { nodes:[], edges:[], nextId:1 };
 const ui = {
   tool:'select', sel:null, connectFrom:null,
   view:{ x:0, y:0, k:1 },
-  results:null, model:null, tab:'best', flows:null
+  results:null, model:null, tab:'best', flows:null,
+  liveSolve:false
 };
 
 /* ---------- persistencia ---------- */
@@ -948,66 +1209,242 @@ function autoName(type){
   do{ k++; } while(state.nodes.some(n=>n.name === pre+k));
   return pre+k;
 }
-function addNode(type){
-  const count = state.nodes.filter(n=>n.type===type).length;
-  let x, y;
-  if(type==='plant'){ x = 130; y = 110 + count*120; }
-  else if(type==='dest'){ x = 660; y = 90 + count*120; }
-  else { x = 395; y = 240 + count*130; }
-  const n = { id:'n'+(state.nextId++), type, name:autoName(type), supply:type==='plant'?50:0, demand:type==='dest'?50:0, x, y };
-  state.nodes.push(n);
-  autoConnect(n);
-  setTool('select');
-  ui.sel = { type:'node', id:n.id };
-  hideHint(); mutate(); renderSide();
-  toast(n.type==='plant'?'Planta agregada: edita su oferta en el panel derecho':
-        n.type==='dest'?'Destino agregado: edita su demanda en el panel derecho':
-        'Hub agregado: conecta plantas→hub y hub→destinos','ok');
+function findFreePos(type){
+  const baseX = type==='plant' ? 140 : type==='dest' ? 660 : 400;
+  const startY = type==='plant' ? 120 : type==='dest' ? 100 : 180;
+  const stepY = 115;
+  let idx = 0;
+  while(idx < 50){
+    const candY = startY + idx * stepY;
+    const clash = state.nodes.some(n => Math.abs(n.x - baseX) < NW_ * 0.8 && Math.abs(n.y - candY) < NH_ * 1.15);
+    if(!clash) return { x: baseX, y: candY };
+    idx++;
+  }
+  return { x: baseX + (Math.random()*40-20), y: startY + idx*stepY };
 }
-function autoConnect(n){
-  const hubs = state.nodes.filter(x=>x.type==='hub');
+function addNode(type){
+  const pos = findFreePos(type);
+  const n = {
+    id:'n'+(state.nextId++),
+    type,
+    name:autoName(type),
+    supply:type==='plant'?50:0,
+    demand:type==='dest'?50:0,
+    x:pos.x,
+    y:pos.y
+  };
+  state.nodes.push(n);
+  // No se auto-conectan las rutas: el usuario decide qué conectar con la herramienta Ruta o desde la matriz
+  ui.sel = { type:'node', id:n.id };
+  hideHint();
+  mutate({ refreshSide:true });
+  if(mqMobile.matches) openSheet('datos');
+  toast(n.type==='plant' ? `${n.name} agregada: conéctala con «Ruta» o con el botón «+» en la tabla` :
+        n.type==='dest'  ? `${n.name} agregado: conéctalo con «Ruta» o con el botón «+» en la tabla` :
+        `Hub ${n.name} agregado: conecta Planta→${n.name} y ${n.name}→Destino`, 'ok', 3400);
+}
+function connectAllMissing(){
+  const plants = state.nodes.filter(n=>n.type==='plant');
+  const dests  = state.nodes.filter(n=>n.type==='dest');
+  if(!plants.length || !dests.length){
+    toast('Necesitas al menos una planta y un destino para conectar.', 'warn');
+    return;
+  }
+  let added = 0;
+  plants.forEach(p=>{
+    dests.forEach(d=>{
+      if(!state.edges.some(e=>e.from===p.id && e.to===d.id)){
+        state.edges.push({ id:'n'+(state.nextId++), from:p.id, to:d.id, cost:5, capacity:null });
+        added++;
+      }
+    });
+  });
+  if(added > 0){
+    mutate({ refreshSide:true });
+    toast(`Se agregaron ${added} ruta(s) directa(s) con costo 5.`, 'ok');
+  } else {
+    toast('Todas las plantas y destinos ya tienen rutas directas.', 'ok');
+  }
+}
+function connectNodeHelper(nodeId){
+  const n = nodeById(nodeId);
+  if(!n) return;
   const plants = state.nodes.filter(x=>x.type==='plant');
-  const dests = state.nodes.filter(x=>x.type==='dest');
-  const mk = (a,b)=>{ if(!state.edges.some(e=>e.from===a.id && e.to===b.id)) state.edges.push({ id:'n'+(state.nextId++), from:a.id, to:b.id, cost:5, capacity:null }); };
-  if(n.type==='plant'){ hubs.length ? hubs.forEach(h=>mk(n,h)) : dests.forEach(d=>mk(n,d)); }
-  else if(n.type==='dest'){ hubs.length ? hubs.forEach(h=>mk(h,n)) : plants.forEach(p=>mk(p,n)); }
-  else if(n.type==='hub'){ plants.forEach(p=>mk(p,n)); dests.forEach(d=>mk(n,d)); }
+  const dests  = state.nodes.filter(x=>x.type==='dest');
+  let added = 0;
+  const mk = (a,b,c)=>{
+    if(!state.edges.some(e=>e.from===a.id && e.to===b.id)){
+      state.edges.push({ id:'n'+(state.nextId++), from:a.id, to:b.id, cost:c, capacity:null });
+      added++;
+    }
+  };
+  if(n.type==='plant') dests.forEach(d=>mk(n,d,5));
+  else if(n.type==='dest') plants.forEach(p=>mk(p,n,5));
+  else if(n.type==='hub'){
+    plants.forEach(p=>mk(p,n,2));
+    dests.forEach(d=>mk(n,d,2));
+  }
+  if(added > 0){
+    mutate({ refreshSide:true });
+    toast(`Se crearon ${added} ruta(s) para ${n.name}.`, 'ok');
+  } else {
+    toast(`${n.name} ya tiene todas esas rutas conectadas.`, 'ok');
+  }
+}
+function clearOnlyEdges(){
+  if(!state.edges.length){ toast('No hay rutas para quitar.', 'warn'); return; }
+  state.edges = [];
+  if(ui.sel && ui.sel.type==='edge') ui.sel = null;
+  mutate({ refreshSide:true });
+  toast('Se quitaron todas las rutas (los nodos se conservaron).', 'ok');
 }
 function deleteNode(id){
   state.nodes = state.nodes.filter(n=>n.id!==id);
   state.edges = state.edges.filter(e=>e.from!==id && e.to!==id);
-  ui.sel = null; mutate(); renderSide();
+  if(ui.sel && ui.sel.id===id) ui.sel = null;
+  mutate({ refreshSide:true });
 }
 function deleteEdge(id){
   state.edges = state.edges.filter(e=>e.id!==id);
-  ui.sel = null; mutate(); renderSide();
+  if(ui.sel && ui.sel.id===id) ui.sel = null;
+  mutate({ refreshSide:true });
 }
-function validPair(a,b){
-  if(!a || !b || a.id===b.id) return false;
-  return (a.type==='plant' && (b.type==='dest' || b.type==='hub')) ||
-         (a.type==='hub' && b.type==='dest');
+/* Determina la dirección válida entre dos nodos (incluso si el usuario los tocó al revés). */
+function resolvePair(a, b){
+  if(!a || !b || a.id===b.id) return null;
+  if(a.type==='plant' && (b.type==='dest' || b.type==='hub')) return { from:a, to:b };
+  if(b.type==='plant' && (a.type==='dest' || a.type==='hub')) return { from:b, to:a };
+  if(a.type==='hub' && b.type==='dest') return { from:a, to:b };
+  if(b.type==='hub' && a.type==='dest') return { from:b, to:a };
+  if(a.type==='hub' && b.type==='hub') return { from:a, to:b };
+  return null;
 }
 function tryConnect(fromId, toId){
   const a = nodeById(fromId), b = nodeById(toId);
-  if(!validPair(a,b)){ toast('Conexión no válida: usa Planta→Destino, Planta→Hub o Hub→Destino.','error'); return; }
-  if(state.edges.some(e=>e.from===a.id && e.to===b.id)){ toast('Esas nodos ya están conectados.','warn'); return; }
-  state.edges.push({ id:'n'+(state.nextId++), from:a.id, to:b.id, cost:5, capacity:null });
-  hideHint(); mutate(); toast('Ruta creada (costo 5). Tócala para editar el costo.','ok');
+  const pair = resolvePair(a, b);
+  if(!pair){
+    toast('Conexión no válida: conecta Planta↔Destino, Planta↔Hub o Hub↔Destino.', 'error');
+    return;
+  }
+  const existing = state.edges.find(e=>e.from===pair.from.id && e.to===pair.to.id);
+  if(existing){
+    ui.sel = { type:'edge', id:existing.id };
+    renderGraph();
+    renderSide();
+    if(mqMobile.matches) openSheet('datos');
+    const costInp = $('#fCost');
+    if(costInp){ costInp.focus(); costInp.select(); }
+    toast(`Ruta ${pair.from.name}→${pair.to.name} seleccionada para editar.`, 'ok');
+    return;
+  }
+  const isHubLeg = pair.from.type==='hub' || pair.to.type==='hub';
+  const defCost = isHubLeg ? 2 : 5;
+  const newEdge = { id:'n'+(state.nextId++), from:pair.from.id, to:pair.to.id, cost:defCost, capacity:null };
+  state.edges.push(newEdge);
+  ui.sel = { type:'edge', id:newEdge.id };
+  hideHint();
+  mutate({ refreshSide:true });
+  if(mqMobile.matches) openSheet('datos');
+  toast(`Ruta ${pair.from.name} → ${pair.to.name} creada (costo ${defCost}).`, 'ok');
 }
 
-/* ---------- invalidación de resultados ---------- */
-function invalidateResults(){
-  if(ui.results){
-    ui.results = null; ui.flows = null;
-    $('#results').classList.remove('open');
+/* ---------- actualización en vivo y mutación ---------- */
+function closeResultsView(){
+  ui.liveSolve = false;
+  ui.results = null;
+  ui.flows = null;
+  $('#results').classList.remove('open','minimized');
+  $('#btnRunLabel').textContent = 'Resolver';
+  if(mqMobile.matches && document.body.classList.contains('sheet-open')
+     && document.body.classList.contains('sheet-resultados')) openSheet('datos');
+  renderGraph();
+  updatePeek();
+}
+function recalcLive(animateNumbers){
+  if(!ui.liveSolve) return;
+  const plants = state.nodes.filter(n=>n.type==='plant');
+  const dests  = state.nodes.filter(n=>n.type==='dest');
+  if(!plants.length || !dests.length){
+    ui.results = { error:'Agrega al menos una planta y un destino para calcular la solución.', notes:[], warnings:[] };
+    ui.flows = null;
+    renderResults(false);
     renderGraph();
+    updatePeek();
+    return;
+  }
+  if(plants.every(p=>p.supply<=0) || dests.every(d=>d.demand<=0)){
+    ui.results = { error:'La oferta y la demanda deben ser mayores que 0.', notes:[], warnings:[] };
+    ui.flows = null;
+    renderResults(false);
+    renderGraph();
+    updatePeek();
+    return;
+  }
+  try{
+    const model = buildModel(state);
+    const res = solveFull(model);
+    ui.model = model;
+    ui.results = res;
+    if(res.error){
+      ui.flows = null;
+      const shorts = (res.shortIdx||[]).map(i=>model.dests[i] && model.dests[i].name).filter(Boolean);
+      res.displayError = res.error + (shorts.length ? ' (sin cubrir: ' + shorts.join(', ') + ')' : '');
+    } else {
+      if(ui.tab==='nw' && !res.nw.x) ui.tab = 'best';
+      if(ui.tab==='lc' && !res.lc.x) ui.tab = 'best';
+      const x = ui.tab==='nw' && res.nw.x ? res.nw.x : ui.tab==='lc' && res.lc.x ? res.lc.x : res.best.x;
+      ui.flows = edgeFlows(state, model, x);
+    }
+    renderResults(!!animateNumbers);
+    renderGraph();
+    updatePeek();
+  }catch(err){
+    console.error(err);
   }
 }
+/* Actualiza totales y balance en la matriz sin destruir el DOM activo mientras el usuario escribe */
+function updateSideTotalsInPlace(){
+  const model = buildModel(state);
+  const totS = sum(model.plants.map(p=>p.supply));
+  const totD = sum(model.dests.map(d=>d.demand));
+  const bal  = Math.abs(totS - totD) < 1e-9;
+  const totEl = $('#totSupplyCell');
+  if(totEl) totEl.textContent = fmtN(totS);
+  const balEl = $('#balNote');
+  if(balEl){
+    balEl.textContent = `${fmtN(totS)} ${bal?'=':'≠'} ${fmtN(totD)}  ${bal?'✓ problema balanceado':'⚠ se agregará un nodo ficticio'}`;
+    balEl.className = 'tot ' + (bal ? 'bal-ok' : 'bal-bad');
+  }
+  // Sincroniza etiquetas de costo vía hub si existen
+  model.plants.forEach((p, i)=>{
+    model.dests.forEach((d, j)=>{
+      const tag = $(`[data-via-cell="${p.id}_${d.id}"]`);
+      if(tag){
+        const vb = model.viaBest[i][j];
+        if(vb){
+          tag.textContent = `vía ${vb.viaLabel}: ${fmtN(vb.cost)}`;
+          tag.style.display = '';
+        } else {
+          tag.style.display = 'none';
+        }
+      }
+    });
+  });
+}
 function mutate(opts){
-  save(); invalidateResults();
-  renderGraph();
-  if(!ui.sel) renderSide();
-  else if(opts && opts.refreshSide) renderSide();
+  opts = opts || {};
+  save();
+  if(ui.liveSolve){
+    recalcLive(false);
+  } else {
+    renderGraph();
+    updatePeek();
+  }
+  if(opts.refreshSide){
+    renderSide();
+  } else {
+    updateSideTotalsInPlace();
+  }
 }
 
 /* ---------- geometría de aristas ---------- */
@@ -1048,7 +1485,7 @@ function nodeHtml(n){
     }
   } else {
     sub = n.type==='plant' ? 'Oferta: ' + fmtN(n.supply) :
-          n.type==='dest'  ? 'Demanda: ' + fmtN(n.demand) : 'Hub intermedio';
+          n.type==='dest'  ? 'Demanda: ' + fmtN(n.demand) : 'Hub transbordo';
   }
   const letter = n.type==='plant'?'P':n.type==='dest'?'D':'H';
   return `<g class="node${selected?' selected':''}${src?' connect-src':''}" data-id="${n.id}" data-kind="node" transform="translate(${n.x-NW_/2},${n.y-NH_/2})">
@@ -1078,19 +1515,18 @@ function edgeHtml(e){
   const active = flow !== null && flow > 1e-9;
   const dim = !!ui.flows && !active;
   const costTxt = fmtN(e.cost);
-  const txt = active ? costTxt + ' · x=' + fmtN(flow) : costTxt;
+  const capTxt = e.capacity!=null ? ` (≤${fmtN(e.capacity)})` : '';
+  const txt = active ? `${costTxt} · x=${fmtN(flow)}` : `${costTxt}${capTxt}`;
   const w = txt.length*6.7 + 16;
   const pill = `<rect class="${active?'e-alloc-bg':'e-pill'}" x="${g.mid.x-w/2}" y="${g.mid.y-9}" width="${w}" height="18" rx="9"/>
-    <text class="${active?'e-alloc':'e-cost'}" x="${g.mid.x}" y="${g.mid.y}">${txt}</text>`;
+    <text class="${active?'e-alloc':'e-cost'}" x="${g.mid.x}" y="${g.mid.y}">${esc(txt)}</text>`;
   const capTitle = e.capacity!=null ? ` · máx ${fmtN(e.capacity)}` : '';
-  return `<g class="edge${selected?' selected':''}${active?' active':''}${dim?' dimmed':''}${isHubLeg?' hubleg':''}" data-id="${e.id}" data-kind="edge"${active?` style="animation-delay:${(allocDelay++%8)*70}ms"`:''}>
+  return `<g class="edge${selected?' selected':''}${active?' active':''}${dim?' dimmed':''}${isHubLeg?' hubleg':''}" data-id="${e.id}" data-kind="edge">
     <title>${esc(a?a.name:'?')} → ${esc(b?b.name:'?')} · costo ${costTxt}${capTitle}</title>
     <path class="e-line" d="M${g.p1.x} ${g.p1.y} L${g.p2.x} ${g.p2.y}" marker-end="url(#${active?'arrowGood':selected?'arrowSel':'arrow'})"/>
-    <g class="${active?'alloc-in':''}">${pill}</g></g>`;
+    <g>${pill}</g></g>`;
 }
-let allocDelay = 0;
 function renderGraph(){
-  allocDelay = 0;
   $('#edgesLayer').innerHTML = state.edges.map(edgeHtml).join('');
   $('#nodesLayer').innerHTML = state.nodes.map(nodeHtml).join('');
 }
@@ -1105,169 +1541,388 @@ function refreshEdgePaths(){
     if(!el) return;
     const p = el.querySelector('.e-line');
     p.setAttribute('d', `M${g.p1.x} ${g.p1.y} L${g.p2.x} ${g.p2.y}`);
-    const pill = el.querySelector('.e-pill'), txt = el.querySelector('.e-cost');
+    const pill = el.querySelector('.e-pill') || el.querySelector('.e-alloc-bg');
+    const txt  = el.querySelector('.e-cost') || el.querySelector('.e-alloc');
     if(pill && txt){
       const cw = parseFloat(pill.getAttribute('width'));
       pill.setAttribute('x', g.mid.x-cw/2); pill.setAttribute('y', g.mid.y-9);
       txt.setAttribute('x', g.mid.x); txt.setAttribute('y', g.mid.y);
     }
-    const bg = el.querySelector('.e-alloc-bg'), at = el.querySelector('.e-alloc');
-    if(bg && at){
-      const aw = parseFloat(bg.getAttribute('width'));
-      bg.setAttribute('x', g.mid.x-aw/2); bg.setAttribute('y', g.mid.y+13);
-      at.setAttribute('x', g.mid.x); at.setAttribute('y', g.mid.y+21.5);
-    }
   });
 }
+function updatePreviewLine(worldPt){
+  const ln = $('#connectPreview');
+  if(!ln) return;
+  if(!ui.connectFrom || !worldPt){
+    ln.style.display = 'none';
+    return;
+  }
+  const src = nodeById(ui.connectFrom);
+  if(!src){ ln.style.display = 'none'; return; }
+  const p1 = clipRect(src, worldPt);
+  ln.setAttribute('x1', p1.x);
+  ln.setAttribute('y1', p1.y);
+  ln.setAttribute('x2', worldPt.x);
+  ln.setAttribute('y2', worldPt.y);
+  ln.style.display = '';
+}
 
-/* ---------- panel lateral ---------- */
-function renderSide(){
-  const side = $('#side');
-  if(ui.sel && ui.sel.type==='node'){
+/* ---------- panel lateral (Inspector + Matriz siempre disponible) ---------- */
+function buildInspectorHtml(){
+  if(!ui.sel) return '';
+  if(ui.sel.type==='node'){
     const n = nodeById(ui.sel.id);
-    if(!n){ ui.sel = null; renderSide(); return; }
+    if(!n){ ui.sel = null; return ''; }
     const routes = edgesOf(n.id).length;
-    side.innerHTML = `
-      <div class="side-head"><h2>Nodo</h2><span class="badge ${n.type}">${n.type==='plant'?'PLANTA':n.type==='dest'?'DESTINO':'HUB'}</span></div>
-      <div class="side-body">
+    const connectLabel = n.type==='plant' ? 'Conectar a todos los destinos' :
+                         n.type==='dest'  ? 'Conectar desde todas las plantas' :
+                         'Conectar Plantas → Hub → Destinos';
+    return `
+      <div class="inspector-card">
+        <div class="inspector-head">
+          <div class="i-title">
+            <span class="badge ${n.type}">${n.type==='plant'?'PLANTA':n.type==='dest'?'DESTINO':'HUB'}</span>
+            <span>Editar ${esc(n.name)}</span>
+          </div>
+          <button class="inspector-close" id="closeInspector" title="Cerrar inspector">✕</button>
+        </div>
         <div class="field"><label>NOMBRE</label><input id="fName" type="text" value="${esc(n.name)}" maxlength="14"></div>
         ${n.type==='plant' ? `<div class="field"><label>OFERTA (unidades disponibles)</label><input id="fSupply" type="number" min="0" step="any" value="${n.supply}"></div>` : ''}
         ${n.type==='dest' ? `<div class="field"><label>DEMANDA (unidades requeridas)</label><input id="fDemand" type="number" min="0" step="any" value="${n.demand}"></div>` : ''}
-        ${n.type==='hub' ? `<div class="muted-note">El hub no produce ni consume: solo equilibra el flujo.<br><b>Lo que entra = lo que sale.</b></div>` : ''}
-        <div class="field" style="margin-top:12px"><label>RUTAS CONECTADAS</label>
-          <div class="muted-note">${routes} ruta(s). ${n.type!=='hub'?'Usa la herramienta <b>Ruta</b> para conectar o desconectar nodos.':'Conecta plantas → hub y hub → destinos.'}</div></div>
-        <div class="side-actions"><button class="btn danger" id="fDelete">Eliminar nodo</button></div>
+        ${n.type==='hub' ? `<div class="muted-note" style="margin-bottom:8px">Nodo de transbordo: equilibra el flujo (<b>lo que entra = lo que sale</b>).</div>` : ''}
+        <div style="font-size:11px;color:var(--muted);margin-bottom:8px">${routes} ruta(s) conectada(s) a este nodo.</div>
+        <div class="side-actions">
+          <button class="btn" id="fConnectNode" title="${connectLabel}">${connectLabel}</button>
+          <button class="btn danger" id="fDelete">Eliminar nodo</button>
+        </div>
       </div>`;
-    const nameI = $('#fName');
-    nameI.addEventListener('input', ()=>{ n.name = nameI.value || n.name; save(); renderGraph(); if(ui.results) renderResults(); });
-    const sup = $('#fSupply');
-    if(sup) sup.addEventListener('change', ()=>{ const v = parseFloat(sup.value); n.supply = isFinite(v)&&v>=0 ? v : n.supply; sup.value = n.supply; hideHint(); mutate(); });
-    const dem = $('#fDemand');
-    if(dem) dem.addEventListener('change', ()=>{ const v = parseFloat(dem.value); n.demand = isFinite(v)&&v>=0 ? v : n.demand; dem.value = n.demand; hideHint(); mutate(); });
-    $('#fDelete').addEventListener('click', ()=>{ deleteNode(n.id); toast('Nodo eliminado','ok'); });
-    return;
   }
-  if(ui.sel && ui.sel.type==='edge'){
+  if(ui.sel.type==='edge'){
     const e = state.edges.find(x=>x.id===ui.sel.id);
-    if(!e){ ui.sel = null; renderSide(); return; }
+    if(!e){ ui.sel = null; return ''; }
     const a = nodeById(e.from), b = nodeById(e.to);
-    const isHubLeg = a.type==='hub' || b.type==='hub';
-    side.innerHTML = `
-      <div class="side-head"><h2>Ruta</h2><span class="badge ${b.type}">${a.type.toUpperCase()} → ${b.type.toUpperCase()}</span></div>
-      <div class="side-body">
-        <div class="muted-note" style="font-size:13px"><b>${esc(a.name)}</b> → <b>${esc(b.name)}</b></div>
-        <div class="field" style="margin-top:12px"><label>COSTO POR UNIDAD ENVIADA</label>
-          <input id="fCost" type="number" min="0" step="any" value="${e.cost}"></div>
-        <div class="field"><label>CAPACIDAD MÁXIMA (opcional)</label>
-          <input id="fCap" type="number" min="0" step="any" value="${e.capacity!=null?e.capacity:''}" placeholder="sin límite"></div>
-        ${isHubLeg && b.type==='hub' ? '<div class="muted-note">Tramo del hub: el costo total de la ruta vía hub es la suma de sus tramos.</div>' : ''}
-        <div class="side-actions"><button class="btn danger" id="fDelEdge">Eliminar ruta</button></div>
+    if(!a || !b){ ui.sel = null; return ''; }
+    return `
+      <div class="inspector-card">
+        <div class="inspector-head">
+          <div class="i-title">
+            <span class="badge ${b.type}">RUTA</span>
+            <span>${esc(a.name)} → ${esc(b.name)}</span>
+          </div>
+          <button class="inspector-close" id="closeInspector" title="Cerrar inspector">✕</button>
+        </div>
+        <div class="field">
+          <div class="row">
+            <div class="field"><label>COSTO UNITARIO</label>
+              <input id="fCost" type="number" min="0" step="any" value="${e.cost}"></div>
+            <div class="field"><label>CAPACIDAD MÁX.</label>
+              <input id="fCap" type="number" min="0" step="any" value="${e.capacity!=null?e.capacity:''}" placeholder="sin límite"></div>
+          </div>
+        </div>
+        <div class="side-actions">
+          <button class="btn danger" id="fDelEdge">Eliminar ruta</button>
+        </div>
       </div>`;
-    $('#fCost').addEventListener('change', ev=>{
-      const v = parseFloat(ev.target.value);
-      if(isFinite(v) && v>=0){ e.cost = v; hideHint(); mutate(); } else ev.target.value = e.cost;
-    });
-    $('#fCap').addEventListener('change', ev=>{
-      const v = parseFloat(ev.target.value);
-      if(ev.target.value===''){ e.capacity = null; }
-      else if(isFinite(v) && v>=0){ e.capacity = v; }
-      else { ev.target.value = e.capacity!=null?e.capacity:''; return; }
-      hideHint(); mutate();
-    });
-    $('#fDelEdge').addEventListener('click', ()=>{ deleteEdge(e.id); toast('Ruta eliminada','ok'); });
-    return;
   }
-  renderMatrix();
+  return '';
 }
-function renderMatrix(){
-  const model = buildModel(state);
-  const plants = model.plants, dests = model.dests;
+
+function buildHubSectionHtml(model){
+  const { plants, dests, hubs } = model;
+  if(!hubs.length) return '';
+  const findEdge = (a,b)=> state.edges.find(e=>e.from===a && e.to===b) || null;
+
+  // Tabla 1: Planta -> Hub
+  let phHtml = '';
+  if(plants.length){
+    const heads = hubs.map(h=>`<th>${esc(h.name)}</th>`).join('');
+    const rows = plants.map(p=>`
+      <tr>
+        <td class="row-label">${esc(p.name)}</td>
+        ${hubs.map(h=>{
+          const e = findEdge(p.id, h.id);
+          if(!e) return `<td class="blocked"><button data-from="${p.id}" data-to="${h.id}" data-defcost="2" title="Conectar ${esc(p.name)} → ${esc(h.name)}">+</button></td>`;
+          return `<td><div class="cell-box">
+            <input class="edge-cost" data-edge="${e.id}" type="number" min="0" step="any" value="${e.cost}" title="Costo ${esc(p.name)} → ${esc(h.name)}">
+            <button class="x" data-del-edge="${e.id}" title="Quitar tramo ${esc(p.name)} → ${esc(h.name)}">×</button>
+          </div></td>`;
+        }).join('')}
+      </tr>`).join('');
+    phHtml = `<div class="hub-sub">Entrada al Hub (Planta → Hub)</div>
+      <div class="matrix-wrap"><table class="matrix"><thead><tr><th class="rh">Planta</th>${heads}</tr></thead><tbody>${rows}</tbody></table></div>`;
+  }
+
+  // Tabla 2: Hub -> Destino
+  let hdHtml = '';
+  if(dests.length){
+    const heads = dests.map(d=>`<th>${esc(d.name)}</th>`).join('');
+    const rows = hubs.map(h=>`
+      <tr>
+        <td class="row-label">${esc(h.name)}</td>
+        ${dests.map(d=>{
+          const e = findEdge(h.id, d.id);
+          if(!e) return `<td class="blocked"><button data-from="${h.id}" data-to="${d.id}" data-defcost="2" title="Conectar ${esc(h.name)} → ${esc(d.name)}">+</button></td>`;
+          return `<td><div class="cell-box">
+            <input class="edge-cost" data-edge="${e.id}" type="number" min="0" step="any" value="${e.cost}" title="Costo ${esc(h.name)} → ${esc(d.name)}">
+            <button class="x" data-del-edge="${e.id}" title="Quitar tramo ${esc(h.name)} → ${esc(d.name)}">×</button>
+          </div></td>`;
+        }).join('')}
+      </tr>`).join('');
+    hdHtml = `<div class="hub-sub">Salida del Hub (Hub → Destino)</div>
+      <div class="matrix-wrap"><table class="matrix"><thead><tr><th class="rh">Hub</th>${heads}</tr></thead><tbody>${rows}</tbody></table></div>`;
+  }
+
+  return `<div class="hub-section">
+    <h4><span>Tramos de Hub (Transbordo)</span><span class="badge hub">${hubs.length} HUB${hubs.length>1?'S':''}</span></h4>
+    ${phHtml}
+    ${hdHtml}
+  </div>`;
+}
+
+function renderSide(){
   const side = $('#side');
-  if(!plants.length && !dests.length){
-    side.innerHTML = `
-      <div class="side-head"><h2>Datos del problema</h2></div>
-      <div class="side-body"><div class="empty-state">
-        <svg viewBox="0 0 24 24"><circle cx="6" cy="18" r="2.5"/><circle cx="18" cy="6" r="2.5"/><path d="M8 16l8-8"/></svg>
-        <p>Todavía no hay nodos.<br>Agrega <b>plantas</b> y <b>destinos</b> con los botones de la izquierda, o carga el <b>Ejemplo</b>.</p>
-      </div></div>`;
-    return;
-  }
-  if(!plants.length || !dests.length){
-    side.innerHTML = `
-      <div class="side-head"><h2>Datos del problema</h2></div>
-      <div class="side-body"><div class="empty-state">
+  const model = buildModel(state);
+  const { plants, dests, hubs } = model;
+  const inspector = buildInspectorHtml();
+
+  let matrixContent = '';
+  if(!plants.length && !dests.length && !hubs.length){
+    matrixContent = `<div class="empty-state">
+      <svg viewBox="0 0 24 24"><circle cx="6" cy="18" r="2.5"/><circle cx="18" cy="6" r="2.5"/><path d="M8 16l8-8"/></svg>
+      <p>Todavía no hay nodos.<br>Agrega <b>plantas</b> y <b>destinos</b> con la barra izquierda, o carga un <b>Ejemplo</b> arriba.</p>
+    </div>`;
+  } else if(!plants.length || !dests.length){
+    matrixContent = `
+      ${buildHubSectionHtml(model)}
+      <div class="empty-state">
         <svg viewBox="0 0 24 24"><path d="M3 21V10l5 3V10l5 3V7l6 4v10z"/><path d="M3 21h18"/></svg>
-        <p>${plants.length ? 'Faltan <b>destinos</b>: ya hay plantas con oferta.' : 'Faltan <b>plantas</b>: ya hay destinos con demanda.'}</p>
-      </div></div>`;
-    return;
-  }
-  const heads = dests.map(d=>`<th>${esc(d.name)}</th>`).join('');
-  const rows = plants.map(p=>`
-    <tr>
-      <td class="row-label">${esc(p.name)}<small>oferta</small></td>
-      ${dests.map(d=>{
-        const idxP = plants.indexOf(p), idxD = dests.indexOf(d);
-        const c = model.cost[idxP][idxD];
-        const via = model.via[idxP][idxD];
-        if(c===null) return `<td class="blocked"><button data-plant="${p.id}" data-dest="${d.id}" title="Sin ruta: toca para crearla">+</button></td>`;
-        const ro = via ? ' readonly data-via="1"' : '';
-        return `<td><input class="cost${via?' fixed':''}" data-p="${idxP}" data-d="${idxD}" data-pe="${p.id}" data-de="${d.id}" type="number" min="0" step="any" value="${c}"${ro} title="${via?'Ruta vía hub: edita los tramos en el lienzo':'Costo por unidad'}"></td>`;
-      }).join('')}
-      <td><input class="fixed" data-node="${p.id}" data-attr="supply" type="number" min="0" step="any" value="${p.supply}"></td>
-    </tr>`).join('');
-  const totS = plants.reduce((s,p)=>s+p.supply,0);
-  const totD = dests.reduce((s,d)=>s+d.demand,0);
-  const bal = Math.abs(totS-totD) < 1e-9;
-  side.innerHTML = `
-    <div class="side-head"><h2>Datos del problema</h2></div>
-    <div class="side-body">
+        <p>${plants.length ? 'Agrega al menos un <b>Destino</b> para completar la tabla.' : 'Agrega al menos una <b>Planta</b> para completar la tabla.'}</p>
+      </div>`;
+  } else {
+    const heads = dests.map(d=>`<th title="Clic para seleccionar ${esc(d.name)}" style="cursor:pointer" data-sel-node="${d.id}">${esc(d.name)}</th>`).join('');
+    const rows = plants.map((p, idxP)=>`
+      <tr>
+        <td class="row-label" style="cursor:pointer" data-sel-node="${p.id}" title="Clic para seleccionar ${esc(p.name)}">${esc(p.name)}<small>oferta</small></td>
+        ${dests.map((d, idxD)=>{
+          const de = model.directEdge[idxP][idxD];
+          const vBest = model.viaBest[idxP][idxD];
+          if(!de){
+            return `<td class="blocked">
+              <button data-from="${p.id}" data-to="${d.id}" data-defcost="5" title="Sin ruta directa ${esc(p.name)}→${esc(d.name)}: clic para crearla">+</button>
+              <span class="via-hint" data-via-cell="${p.id}_${d.id}" style="${vBest?'':'display:none'}">${vBest ? `vía ${esc(vBest.viaLabel)}: ${fmtN(vBest.cost)}` : ''}</span>
+            </td>`;
+          }
+          return `<td><div class="cell-box">
+            <input class="edge-cost" data-edge="${de.id}" type="number" min="0" step="any" value="${de.cost}" title="Costo directo ${esc(p.name)} → ${esc(d.name)}">
+            <button class="x" data-del-edge="${de.id}" title="Quitar ruta directa ${esc(p.name)} → ${esc(d.name)}">×</button>
+            <span class="via-tag" data-via-cell="${p.id}_${d.id}" style="${vBest?'':'display:none'}" title="Ruta alternativa vía Hub">${vBest ? `vía ${esc(vBest.viaLabel)}: ${fmtN(vBest.cost)}` : ''}</span>
+          </div></td>`;
+        }).join('')}
+        <td><input class="fixed" data-node="${p.id}" data-attr="supply" type="number" min="0" step="any" value="${p.supply}" title="Oferta de ${esc(p.name)}"></td>
+      </tr>`).join('');
+    const totS = sum(plants.map(p=>p.supply));
+    const totD = sum(dests.map(d=>d.demand));
+    const bal = Math.abs(totS-totD) < 1e-9;
+
+    matrixContent = `
+      <div class="matrix-toolbar">
+        <span class="mt-title">Rutas directas y oferta/demanda</span>
+        <div class="mt-btns">
+          <button class="mini-btn" id="btnConnectMissing" title="Crear todas las rutas directas faltantes (costo 5)">+ Conectar todo</button>
+          <button class="mini-btn danger" id="btnClearEdges" title="Quitar todas las rutas conservando los nodos">Quitar rutas</button>
+        </div>
+      </div>
       <div class="matrix-wrap">
         <table class="matrix">
           <thead><tr><th class="rh"></th>${heads}<th>Oferta</th></tr></thead>
           <tbody>${rows}</tbody>
           <tfoot>
-            <tr><th class="rh">Demanda</th>${dests.map(d=>`<td><input class="fixed" data-node="${d.id}" data-attr="demand" type="number" min="0" step="any" value="${d.demand}"></td>`).join('')}<td class="tot">${fmtN(totS)}</td></tr>
+            <tr><th class="rh">Demanda</th>${dests.map(d=>`<td><input class="fixed" data-node="${d.id}" data-attr="demand" type="number" min="0" step="any" value="${d.demand}" title="Demanda de ${esc(d.name)}"></td>`).join('')}<td class="tot" id="totSupplyCell">${fmtN(totS)}</td></tr>
             <tr><td colspan="${dests.length+2}" style="text-align:left;padding-top:6px"><span id="balNote" class="tot ${bal?'bal-ok':'bal-bad'}">${fmtN(totS)} ${bal?'=':'≠'} ${fmtN(totD)}  ${bal?'✓ problema balanceado':'⚠ se agregará un nodo ficticio'}</span></td></tr>
           </tfoot>
         </table>
       </div>
+      ${buildHubSectionHtml(model)}
       <div class="mtx-legend">
-        <span><i style="background:${COLORS.plant}"></i>Planta (oferta)</span>
-        <span><i style="background:${COLORS.dest}"></i>Destino (demanda)</span>
-        <span><i style="background:${COLORS.hub}"></i>Hub</span>
-        <span><i style="background:#f8fafc;border:1px dashed #cbd5e1"></i>Sin ruta</span>
+        <span><i style="background:${COLORS.plant}"></i>Planta</span>
+        <span><i style="background:${COLORS.dest}"></i>Destino</span>
+        ${hubs.length ? `<span><i style="background:${COLORS.hub}"></i>Hub</span>` : ''}
+        <span><i style="background:#f8fafc;border:1px dashed #cbd5e1"></i><b>+</b> Conectar ruta</span>
       </div>
-      <div class="muted-note" style="margin-top:12px">Toca un nodo o una ruta del lienzo para editar sus datos. Con <b>Run</b> se resuelve el problema.</div>
+      <div class="muted-note" style="margin-top:10px">Puedes editar cualquier costo, oferta, demanda o ruta en todo momento. Si ya ejecutaste <b>Resolver</b>, el resultado se actualiza en vivo.</div>`;
+  }
+
+  side.innerHTML = `
+    <div class="side-head">
+      <h2>Datos del problema</h2>
+      ${ui.liveSolve ? `<span class="badge plant">EN VIVO</span>` : ''}
+    </div>
+    <div class="side-body">
+      ${inspector}
+      ${matrixContent}
     </div>`;
-  side.querySelectorAll('input.cost:not([readonly])').forEach(inp=>{
-    inp.addEventListener('change', ()=>{
+
+  // Eventos del Inspector
+  const closeInsp = $('#closeInspector');
+  if(closeInsp) closeInsp.addEventListener('click', ()=>{ ui.sel = null; renderGraph(); renderSide(); });
+
+  const nameI = $('#fName');
+  if(nameI && ui.sel && ui.sel.type==='node'){
+    const n = nodeById(ui.sel.id);
+    nameI.addEventListener('input', ()=>{
+      if(!n) return;
+      n.name = nameI.value.trim() || n.name;
+      save();
+      if(ui.liveSolve) recalcLive(false); else renderGraph();
+    });
+    nameI.addEventListener('change', ()=>renderSide());
+  }
+  const supI = $('#fSupply');
+  if(supI && ui.sel && ui.sel.type==='node'){
+    const n = nodeById(ui.sel.id);
+    const onSup = ()=>{
+      const v = parseFloat(supI.value);
+      if(n && isFinite(v) && v>=0){
+        n.supply = v;
+        const mInp = side.querySelector(`input[data-node="${n.id}"][data-attr="supply"]`);
+        if(mInp && mInp !== document.activeElement) mInp.value = v;
+        hideHint();
+        mutate({ refreshSide:false });
+      }
+    };
+    supI.addEventListener('input', onSup);
+    supI.addEventListener('change', ()=>{ if(n) supI.value = n.supply; });
+  }
+  const demI = $('#fDemand');
+  if(demI && ui.sel && ui.sel.type==='node'){
+    const n = nodeById(ui.sel.id);
+    const onDem = ()=>{
+      const v = parseFloat(demI.value);
+      if(n && isFinite(v) && v>=0){
+        n.demand = v;
+        const mInp = side.querySelector(`input[data-node="${n.id}"][data-attr="demand"]`);
+        if(mInp && mInp !== document.activeElement) mInp.value = v;
+        hideHint();
+        mutate({ refreshSide:false });
+      }
+    };
+    demI.addEventListener('input', onDem);
+    demI.addEventListener('change', ()=>{ if(n) demI.value = n.demand; });
+  }
+  const connNodeBtn = $('#fConnectNode');
+  if(connNodeBtn && ui.sel && ui.sel.type==='node'){
+    connNodeBtn.addEventListener('click', ()=>connectNodeHelper(ui.sel.id));
+  }
+  const delNodeBtn = $('#fDelete');
+  if(delNodeBtn && ui.sel && ui.sel.type==='node'){
+    delNodeBtn.addEventListener('click', ()=>{ deleteNode(ui.sel.id); toast('Nodo eliminado','ok'); });
+  }
+
+  const costI = $('#fCost');
+  if(costI && ui.sel && ui.sel.type==='edge'){
+    const e = state.edges.find(x=>x.id===ui.sel.id);
+    const onCost = ()=>{
+      const v = parseFloat(costI.value);
+      if(e && isFinite(v) && v>=0){
+        e.cost = v;
+        const mInp = side.querySelector(`input.edge-cost[data-edge="${e.id}"]`);
+        if(mInp && mInp !== document.activeElement) mInp.value = v;
+        hideHint();
+        mutate({ refreshSide:false });
+      }
+    };
+    costI.addEventListener('input', onCost);
+    costI.addEventListener('change', ()=>{ if(e) costI.value = e.cost; });
+  }
+  const capI = $('#fCap');
+  if(capI && ui.sel && ui.sel.type==='edge'){
+    const e = state.edges.find(x=>x.id===ui.sel.id);
+    const onCap = ()=>{
+      if(!e) return;
+      if(capI.value.trim()===''){ e.capacity = null; hideHint(); mutate({ refreshSide:false }); return; }
+      const v = parseFloat(capI.value);
+      if(isFinite(v) && v>=0){ e.capacity = v; hideHint(); mutate({ refreshSide:false }); }
+    };
+    capI.addEventListener('input', onCap);
+    capI.addEventListener('change', ()=>{ if(e) capI.value = e.capacity!=null ? e.capacity : ''; });
+  }
+  const delEdgeBtn = $('#fDelEdge');
+  if(delEdgeBtn && ui.sel && ui.sel.type==='edge'){
+    delEdgeBtn.addEventListener('click', ()=>{ deleteEdge(ui.sel.id); toast('Ruta eliminada','ok'); });
+  }
+
+  // Eventos de la Matriz y Tramos de Hub
+  const btnConnAll = $('#btnConnectMissing');
+  if(btnConnAll) btnConnAll.addEventListener('click', connectAllMissing);
+  const btnClrEdges = $('#btnClearEdges');
+  if(btnClrEdges) btnClrEdges.addEventListener('click', clearOnlyEdges);
+
+  side.querySelectorAll('[data-sel-node]').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      ui.sel = { type:'node', id:el.dataset.selNode };
+      renderGraph();
+      renderSide();
+    });
+  });
+
+  side.querySelectorAll('input.edge-cost').forEach(inp=>{
+    const onEdgeCost = ()=>{
       const v = parseFloat(inp.value);
-      const e = state.edges.find(x=>x.from===inp.dataset.pe && x.to===inp.dataset.de);
-      if(e && isFinite(v) && v>=0){ e.cost = v; hideHint(); mutate(); }
-      else { inp.value = e ? e.cost : inp.value; }
-    });
-  });
-  side.querySelectorAll('input.cost[data-via]').forEach(inp=>{
-    inp.addEventListener('focus', ()=>{ inp.blur(); toast('Esta ruta pasa por el hub: toca la ruta en el lienzo para editar sus tramos.','warn',3400); });
-  });
-  side.querySelectorAll('td.blocked button').forEach(btn=>{
-    btn.addEventListener('click', ()=>{
-      state.edges.push({ id:'n'+(state.nextId++), from:btn.dataset.plant, to:btn.dataset.dest, cost:5, capacity:null });
-      hideHint(); mutate(); toast('Ruta creada con costo 5. Ajusta el costo en la tabla.','ok');
-    });
-  });
-  side.querySelectorAll('input[data-node]').forEach(inp=>{
+      const e = state.edges.find(x=>x.id===inp.dataset.edge);
+      if(e && isFinite(v) && v>=0){
+        e.cost = v;
+        if(costI && ui.sel && ui.sel.type==='edge' && ui.sel.id===e.id && costI !== document.activeElement) costI.value = v;
+        hideHint();
+        mutate({ refreshSide:false });
+      }
+    };
+    inp.addEventListener('input', onEdgeCost);
     inp.addEventListener('change', ()=>{
+      const e = state.edges.find(x=>x.id===inp.dataset.edge);
+      if(e) inp.value = e.cost;
+    });
+  });
+
+  side.querySelectorAll('button[data-del-edge]').forEach(btn=>{
+    btn.addEventListener('click', ev=>{
+      ev.stopPropagation();
+      deleteEdge(btn.dataset.delEdge);
+      toast('Ruta eliminada', 'ok', 1800);
+    });
+  });
+
+  side.querySelectorAll('td.blocked button[data-from]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const defC = parseFloat(btn.dataset.defcost) || 5;
+      const ne = { id:'n'+(state.nextId++), from:btn.dataset.from, to:btn.dataset.to, cost:defC, capacity:null };
+      state.edges.push(ne);
+      hideHint();
+      mutate({ refreshSide:true });
+      const newInp = side.querySelector(`input.edge-cost[data-edge="${ne.id}"]`);
+      if(newInp){ newInp.focus(); newInp.select(); }
+    });
+  });
+
+  side.querySelectorAll('input[data-node]').forEach(inp=>{
+    const onNodeVal = ()=>{
       const n = nodeById(inp.dataset.node);
       const v = parseFloat(inp.value);
       if(n && isFinite(v) && v>=0){
-        if(inp.dataset.attr==='supply') n.supply = v; else n.demand = v;
-        hideHint(); mutate();
-        const totS2 = plants.reduce((s,p)=>s+p.supply,0), totD2 = dests.reduce((s,d)=>s+d.demand,0);
-        const ok = Math.abs(totS2-totD2)<1e-9;
-        const el = $('#balNote');
-        if(el){ el.textContent = `${fmtN(totS2)} ${ok?'=':'≠'} ${fmtN(totD2)}  ${ok?'✓ problema balanceado':'⚠ se agregará un nodo ficticio'}`; el.className = 'tot '+(ok?'bal-ok':'bal-bad'); }
-      } else if(n) inp.value = inp.dataset.attr==='supply' ? n.supply : n.demand;
+        if(inp.dataset.attr==='supply'){
+          n.supply = v;
+          if(supI && ui.sel && ui.sel.type==='node' && ui.sel.id===n.id && supI !== document.activeElement) supI.value = v;
+        } else {
+          n.demand = v;
+          if(demI && ui.sel && ui.sel.type==='node' && ui.sel.id===n.id && demI !== document.activeElement) demI.value = v;
+        }
+        hideHint();
+        mutate({ refreshSide:false });
+      }
+    };
+    inp.addEventListener('input', onNodeVal);
+    inp.addEventListener('change', ()=>{
+      const n = nodeById(inp.dataset.node);
+      if(n) inp.value = inp.dataset.attr==='supply' ? n.supply : n.demand;
     });
   });
 }
@@ -1275,37 +1930,22 @@ function renderMatrix(){
 /* ---------- ejecución ---------- */
 function run(){
   const plants = state.nodes.filter(n=>n.type==='plant');
-  const dests   = state.nodes.filter(n=>n.type==='dest');
-  if(!plants.length || !dests.length){ toast('Agrega al menos una planta y un destino antes de ejecutar.','error',3600); return; }
+  const dests  = state.nodes.filter(n=>n.type==='dest');
+  if(!plants.length || !dests.length){ toast('Agrega al menos una planta y un destino antes de resolver.','error',3600); return; }
   if(plants.every(p=>p.supply<=0) || dests.every(d=>d.demand<=0)){ toast('La oferta y la demanda deben ser mayores que 0.','error'); return; }
-  const btn = $('#btnRun');
-  btn.classList.add('running');
-  setTimeout(()=>{
-    try{
-      const model = buildModel(state);
-      const res = solveFull(model);
-      ui.model = model;
-      ui.results = res;
-      if(res.error){
-        ui.flows = null; ui.tab = 'best';
-        const shorts = (res.shortIdx||[]).map(i=>model.dests[i] && model.dests[i].name).filter(Boolean);
-        res.displayError = res.error + (shorts.length ? ' (sin cubrir: ' + shorts.join(', ') + ')' : '');
-        renderResults(); renderGraph(); openResults();
-        toast('No se pudo resolver: revisa la red.','error',4200);
-      } else {
-        ui.tab = res.modi ? 'best' : (res.lc.x ? 'lc' : 'nw');
-        applyTab();
-        renderResults(); openResults();
-        toast('Costo mínimo encontrado: ' + fmtN(res.best.z) + ' unidades monetarias','ok',3600);
-      }
-      hideHint();
-    }catch(err){
-      console.error(err);
-      toast('Error inesperado: ' + err.message, 'error', 5000);
-      ui.results = null; ui.flows = null; renderGraph();
-    }
-    btn.classList.remove('running');
-  }, 130);
+  ui.liveSolve = true;
+  $('#btnRunLabel').textContent = 'Recalcular';
+  $('#results').classList.remove('minimized');
+  updateMinBtnLabel();
+  recalcLive(true);
+  openResults();
+  renderSide();
+  if(ui.results && !ui.results.error){
+    toast('Costo mínimo encontrado: ' + fmtN(ui.results.best.z) + ' · Puedes seguir editando en vivo','ok',3400);
+  } else if(ui.results && ui.results.error){
+    toast('Revisa las rutas: ' + ui.results.error, 'error', 4000);
+  }
+  hideHint();
 }
 function applyTab(){
   const R = ui.results;
@@ -1314,12 +1954,21 @@ function applyTab(){
   ui.flows = edgeFlows(state, ui.model, x);
   renderGraph();
 }
-function openResults(){ $('#results').classList.add('open'); }
+function openResults(){
+  if(mqMobile.matches) openSheet('resultados');
+  else $('#results').classList.add('open');
+}
+function updateMinBtnLabel(){
+  const btn = $('#resultsToggleMin');
+  if(!btn) return;
+  const isMin = $('#results').classList.contains('minimized');
+  btn.textContent = isMin ? '▲ Expandir' : '▼ Minimizar';
+}
 
 /* ---------- resultados ---------- */
 function countUp(el, target){
   if(window.matchMedia('(prefers-reduced-motion: reduce)').matches){ el.textContent = fmtN(target); return; }
-  const t0 = performance.now(), dur = 750;
+  const t0 = performance.now(), dur = 500;
   let done = false;
   function finish(){ if(done) return; done = true; el.textContent = fmtN(target); }
   function frame(){
@@ -1330,7 +1979,7 @@ function countUp(el, target){
     if(p<1) requestAnimationFrame(frame); else done = true;
   }
   requestAnimationFrame(frame);
-  setTimeout(finish, dur+120);
+  setTimeout(finish, dur+90);
 }
 function noticeHtml(text, kind){
   return `<div class="notice${kind==='err'?' err':''}"><svg viewBox="0 0 24 24"><path d="M12 9v4M12 17h.01M10.3 3.9 2.4 18a2 2 0 0 0 1.7 3h15.8a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg><div>${esc(text)}</div></div>`;
@@ -1350,7 +1999,8 @@ function allocTable(R, x){
       const v = x[i] ? (x[i][j]||0) : 0;
       const pos = v > 1e-9;
       const dj = j >= M.dests.length ? ' dummy' : '';
-      return `<td class="v${pos?' pos':''}${dj}">${pos?fmtN(v):'·'}</td>`;
+      const viaLbl = (pos && i < M.plants.length && j < M.dests.length && M.viaName && M.viaName[i][j]) ? ` <small style="color:#b45309">(vía ${esc(M.viaName[i][j])})</small>` : '';
+      return `<td class="v${pos?' pos':''}${dj}">${pos ? fmtN(v) + viaLbl : '·'}</td>`;
     }).join('');
     const rt = Array.from({length:nC},(_,j)=> (x[i]?(x[i][j]||0):0)).reduce((s,v)=>s+v,0);
     return `<tr><td class="name${dum}">${esc(name)}</td>${cells}<td class="v"><b>${fmtN(rt)}</b></td></tr>`;
@@ -1405,11 +2055,16 @@ function hubCard(){
     return `<p>• <b>${esc(h.name)}</b>: entra ${fmtN(inp)} · sale ${fmtN(out)} — ${ok?'<span class="ok">✓ balanceado</span>':'<b>⚠ desbalance</b>'}</p>`;
   }).join('');
 }
-function renderResults(){
-  const R = ui.results, box = $('#resultsInner');
-  if(!R){ box.innerHTML = ''; return; }
+function renderResults(animateNumbers){
+  const R = ui.results, box = $('#resultsInner'), barSum = $('#resultsBarSum');
+  if(!R){
+    box.innerHTML = '';
+    if(barSum) barSum.textContent = '';
+    return;
+  }
   const notes = [...(R.notes||[]), ...(R.warnings||[])];
   if(R.error){
+    if(barSum) barSum.textContent = '⚠ Red incompleta o sin solución factible';
     box.innerHTML = `
       ${noticeHtml(R.displayError || R.error, 'err')}
       ${notes.map(n=>noticeHtml(n)).join('')}
@@ -1419,6 +2074,7 @@ function renderResults(){
   const nwZ = R.nw.x ? R.nw.z : null;
   const lcZ = R.lc.x ? R.lc.z : null;
   const bestZ = R.best.z;
+  if(barSum) barSum.textContent = `Costo óptimo Z = ${fmtN(bestZ)}${nwZ!=null ? ` · Noroeste: ${fmtN(nwZ)}` : ''}${lcZ!=null ? ` · Costo mín.: ${fmtN(lcZ)}` : ''}`;
   const saveVs = nwZ!=null ? nwZ : lcZ;
   const saveAbs = saveVs!=null ? saveVs - bestZ : null;
   const savePct = saveVs ? Math.round(saveAbs/saveVs*100) : 0;
@@ -1465,7 +2121,7 @@ function renderResults(){
         <div class="bars">
           ${methods.map(m=>`<div class="bar-row">
             <span class="b-name">${m.name}</span>
-            <div class="bar-track"><div class="bar-fill${m.z===bestZ?' good':''}" data-w="${Math.max(4, m.z/maxZ*100)}">${m.z===bestZ?'óptimo':''}</div></div>
+            <div class="bar-track"><div class="bar-fill${m.z===bestZ?' good':''}" style="width:${Math.max(4, m.z/maxZ*100)}%" data-w="${Math.max(4, m.z/maxZ*100)}">${m.z===bestZ?'óptimo':''}</div></div>
             <span class="b-val">${fmtN(m.z)}</span></div>`).join('')}
         </div>
         <div class="tabs">${tabs.map(t=>`<button class="tab${ui.tab===t.id?' active':''}" data-tab="${t.id}">${t.label}</button>`).join('')}</div>
@@ -1481,25 +2137,26 @@ function renderResults(){
   box.querySelectorAll('.tab').forEach(b=>b.addEventListener('click', ()=>{
     ui.tab = b.dataset.tab;
     applyTab();
-    renderResults();
+    renderResults(false);
   }));
-  requestAnimationFrame(()=>{
-    box.querySelectorAll('.bar-fill').forEach(b=>{ b.style.width = b.dataset.w + '%'; });
-    box.querySelectorAll('[data-count]').forEach(el=>countUp(el, parseFloat(el.dataset.count)));
-  });
+  if(animateNumbers){
+    requestAnimationFrame(()=>{
+      box.querySelectorAll('[data-count]').forEach(el=>countUp(el, parseFloat(el.dataset.count)));
+    });
+  }
 }
 
-/* ---------- ejemplo / limpiar ---------- */
+/* ---------- ejemplos / limpiar ---------- */
 function loadExample(force){
   if(!force && (state.nodes.length || state.edges.length)){
-    if(!confirm('Reemplazar el contenido actual con el caso de ejemplo?')) return;
+    if(!confirm('¿Reemplazar el contenido actual con el caso de ejemplo clásico?')) return;
   }
   state.nodes = [
-    { id:'p1', type:'plant', name:'P1', supply:80, demand:0, x:150, y:150 },
-    { id:'p2', type:'plant', name:'P2', supply:70, demand:0, x:150, y:370 },
-    { id:'d1', type:'dest',  name:'D1', supply:0, demand:50, x:650, y:110 },
-    { id:'d2', type:'dest',  name:'D2', supply:0, demand:60, x:650, y:270 },
-    { id:'d3', type:'dest',  name:'D3', supply:0, demand:40, x:650, y:430 }
+    { id:'p1', type:'plant', name:'P1', supply:80, demand:0, x:150, y:140 },
+    { id:'p2', type:'plant', name:'P2', supply:70, demand:0, x:150, y:320 },
+    { id:'d1', type:'dest',  name:'D1', supply:0, demand:50, x:650, y:100 },
+    { id:'d2', type:'dest',  name:'D2', supply:0, demand:60, x:650, y:230 },
+    { id:'d3', type:'dest',  name:'D3', supply:0, demand:40, x:650, y:360 }
   ];
   state.edges = [
     { id:'e1', from:'p1', to:'d1', cost:4, capacity:null },
@@ -1511,20 +2168,54 @@ function loadExample(force){
   ];
   state.nextId = 100;
   ui.sel = null; setTool('select');
-  save(); invalidateResults(); renderGraph(); renderSide();
-  zoomFit(); hideHint(); toast('Caso de ejemplo cargado: toca Run para resolver.','ok',3400);
+  save();
+  if(ui.liveSolve) recalcLive(false);
+  renderGraph(); renderSide();
+  zoomFit(); hideHint(); toast('Ejemplo clásico cargado: toca Resolver o edita cualquier dato.','ok',3200);
+}
+function loadExampleHub(force){
+  if(!force && (state.nodes.length || state.edges.length)){
+    if(!confirm('¿Cargar el ejemplo de transbordo con Hub?')) return;
+  }
+  state.nodes = [
+    { id:'p1', type:'plant', name:'P1', supply:80, demand:0, x:130, y:140 },
+    { id:'p2', type:'plant', name:'P2', supply:70, demand:0, x:130, y:320 },
+    { id:'h1', type:'hub',   name:'H1', supply:0,  demand:0, x:395, y:230 },
+    { id:'d1', type:'dest',  name:'D1', supply:0, demand:50, x:660, y:100 },
+    { id:'d2', type:'dest',  name:'D2', supply:0, demand:60, x:660, y:230 },
+    { id:'d3', type:'dest',  name:'D3', supply:0, demand:40, x:660, y:360 }
+  ];
+  state.edges = [
+    { id:'e1', from:'p1', to:'d1', cost:4, capacity:null },
+    { id:'e2', from:'p1', to:'h1', cost:2, capacity:null },
+    { id:'e3', from:'p2', to:'h1', cost:1, capacity:null },
+    { id:'e4', from:'p2', to:'d3', cost:6, capacity:null },
+    { id:'e5', from:'h1', to:'d1', cost:3, capacity:null },
+    { id:'e6', from:'h1', to:'d2', cost:2, capacity:null },
+    { id:'e7', from:'h1', to:'d3', cost:3, capacity:null }
+  ];
+  state.nextId = 120;
+  ui.sel = null; setTool('select');
+  save();
+  if(ui.liveSolve) recalcLive(false);
+  renderGraph(); renderSide();
+  zoomFit(); hideHint(); toast('Ejemplo con Hub cargado: observa los tramos en el panel y toca Resolver.','ok',3400);
 }
 function clearAll(){
   if(state.nodes.length && !confirm('¿Borrar todos los nodos y rutas?')) return;
   state.nodes = []; state.edges = []; state.nextId = 1;
   ui.sel = null; setTool('select');
-  save(); invalidateResults(); renderGraph(); renderSide();
+  closeResultsView();
+  save(); renderGraph(); renderSide();
 }
 
 /* ---------- herramientas ---------- */
 function setTool(t){
   ui.tool = t;
-  if(t!=='connect') ui.connectFrom = null;
+  if(t!=='connect'){
+    ui.connectFrom = null;
+    updatePreviewLine(null);
+  }
   $$('.palette .tool[data-tool]').forEach(b=>b.classList.toggle('active', b.dataset.tool===t));
   const area = $('#canvasArea');
   area.classList.toggle('tool-connect', t==='connect');
@@ -1572,48 +2263,117 @@ function zoomFit(){
   const minX = Math.min(...xs)-NW_, maxX = Math.max(...xs)+NW_;
   const minY = Math.min(...ys)-NH_, maxY = Math.max(...ys)+NH_;
   const bw = maxX-minX, bh = maxY-minY;
-  const k = Math.min((r.width-70)/bw, (r.height-70)/bh, 1.5);
-  ui.view = { k, x:(r.width - bw*k)/2 - minX*k, y:(r.height - bh*k)/2 - minY*k };
+  // Descuenta la altura del panel de resultados si está abierto en escritorio
+  let resH = 0;
+  const resEl = $('#results');
+  if(!mqMobile.matches && resEl && resEl.classList.contains('open')){
+    resH = resEl.classList.contains('minimized') ? 42 : 280;
+  }
+  const availH = Math.max(180, r.height - resH);
+  const k = Math.min((r.width-60)/bw, (availH-50)/bh, 1.45);
+  ui.view = { k, x:(r.width - bw*k)/2 - minX*k, y:(availH - bh*k)/2 - minY*k };
   applyView();
 }
 
-/* ---------- interacción del lienzo ---------- */
-let drag = null, pan = null;
+/* ---------- interacción del lienzo (mouse + touch + pinza + arrastrar para conectar) ---------- */
+let drag = null, pan = null, pinch = null, connectDrag = null;
+const pointers = new Map();
+function clearDragPan(){
+  if(drag){ drag.el.classList.remove('dragging'); drag = null; }
+  if(pan){ pan = null; }
+  if(connectDrag){ connectDrag = null; updatePreviewLine(null); }
+  $('#canvasArea').classList.remove('panning');
+}
+function pinchGeom(){
+  const pts = [...pointers.values()];
+  const dx = pts[0].x - pts[1].x, dy = pts[0].y - pts[1].y;
+  return { d: Math.hypot(dx, dy) || 1, mx:(pts[0].x+pts[1].x)/2, my:(pts[0].y+pts[1].y)/2 };
+}
 $('#canvasArea').addEventListener('pointerdown', e=>{
   if(e.button !== 0) return;
+  pointers.set(e.pointerId, { x:e.clientX, y:e.clientY });
+  if(pointers.size >= 2){
+    clearDragPan();
+    const g = pinchGeom();
+    pinch = { d:g.d, mx:g.mx, my:g.my };
+    return;
+  }
   const nodeEl = e.target.closest('.node');
   const edgeEl = e.target.closest('.edge');
   if(nodeEl){
     const id = nodeEl.dataset.id;
     if(ui.tool==='delete'){
-      const n = nodeById(id);
-      if(n && edgesOf(id).length && !confirm(`¿Eliminar ${n.name} y sus ${edgesOf(id).length} ruta(s)?`)) return;
-      deleteNode(id); toast('Nodo eliminado','ok'); return;
+      deleteNode(id);
+      toast('Nodo eliminado','ok');
+      return;
     }
     if(ui.tool==='connect'){
-      if(!ui.connectFrom){ ui.connectFrom = id; renderGraph(); toast('Ahora toca el nodo destino (o Esc para cancelar).','ok',2600); }
-      else if(ui.connectFrom===id){ ui.connectFrom = null; renderGraph(); }
-      else { const from = ui.connectFrom; ui.connectFrom = null; tryConnect(from, id); renderGraph(); }
+      // Soporta tanto clic-en-origen + clic-en-destino como arrastrar de origen a destino
+      if(!ui.connectFrom){
+        ui.connectFrom = id;
+        connectDrag = { fromId: id, sx: e.clientX, sy: e.clientY, dragged: false };
+        renderGraph();
+      } else if(ui.connectFrom===id){
+        ui.connectFrom = null;
+        updatePreviewLine(null);
+        renderGraph();
+      } else {
+        const from = ui.connectFrom;
+        ui.connectFrom = null;
+        updatePreviewLine(null);
+        tryConnect(from, id);
+      }
       return;
     }
     const n = nodeById(id);
     const w = screenToWorld(e.clientX, e.clientY);
-    drag = { id, ox:w.x - n.x, oy:w.y - n.y, moved:false, sx:e.clientX, sy:e.clientY, el:nodeEl };
+    const changedSel = !ui.sel || ui.sel.type!=='node' || ui.sel.id!==id;
+    ui.sel = { type:'node', id };
+    if(changedSel){
+      renderGraph();
+      renderSide();
+    }
+    const currentNodeEl = $(`#nodesLayer g[data-id="${id}"]`) || nodeEl;
+    drag = { id, ox:w.x - n.x, oy:w.y - n.y, moved:false, sx:e.clientX, sy:e.clientY, el:currentNodeEl };
     return;
   }
   if(edgeEl){
     const id = edgeEl.dataset.id;
     if(ui.tool==='delete'){ deleteEdge(id); toast('Ruta eliminada','ok'); return; }
-    if(ui.tool==='connect'){ toast('Toca nodos, no rutas, para conectar.','warn'); return; }
+    ui.connectFrom = null;
+    updatePreviewLine(null);
     ui.sel = { type:'edge', id };
     renderGraph(); renderSide();
+    if(mqMobile.matches) openSheet('datos');
     return;
   }
-  // fondo: pan + deselect
+  // fondo: cancelar connectFrom o iniciar pan
+  if(ui.connectFrom){
+    ui.connectFrom = null;
+    updatePreviewLine(null);
+    renderGraph();
+  }
   pan = { sx:e.clientX, sy:e.clientY, vx:ui.view.x, vy:ui.view.y, moved:false };
   $('#canvasArea').classList.add('panning');
 });
 window.addEventListener('pointermove', e=>{
+  if(pointers.has(e.pointerId)) pointers.set(e.pointerId, { x:e.clientX, y:e.clientY });
+  if(pinch && pointers.size >= 2){
+    const g = pinchGeom();
+    zoomAt(g.mx, g.my, g.d / pinch.d);
+    ui.view.x += g.mx - pinch.mx;
+    ui.view.y += g.my - pinch.my;
+    applyView();
+    pinch = { d:g.d, mx:g.mx, my:g.my };
+    return;
+  }
+  if(ui.tool==='connect' && ui.connectFrom){
+    if(connectDrag && Math.abs(e.clientX - connectDrag.sx) + Math.abs(e.clientY - connectDrag.sy) > 8){
+      connectDrag.dragged = true;
+    }
+    updatePreviewLine(screenToWorld(e.clientX, e.clientY));
+    return;
+  }
   if(drag){
     if(Math.abs(e.clientX-drag.sx) + Math.abs(e.clientY-drag.sy) > 4){
       drag.moved = true;
@@ -1621,11 +2381,13 @@ window.addEventListener('pointermove', e=>{
     }
     if(drag.moved){
       const n = nodeById(drag.id);
-      const w = screenToWorld(e.clientX, e.clientY);
-      n.x = Math.round(w.x - drag.ox);
-      n.y = Math.round(w.y - drag.oy);
-      updateNodePos(n);
-      refreshEdgePaths();
+      if(n){
+        const w = screenToWorld(e.clientX, e.clientY);
+        n.x = Math.round(w.x - drag.ox);
+        n.y = Math.round(w.y - drag.oy);
+        updateNodePos(n);
+        refreshEdgePaths();
+      }
     }
     return;
   }
@@ -1637,23 +2399,69 @@ window.addEventListener('pointermove', e=>{
     applyView();
   }
 });
-window.addEventListener('pointerup', e=>{
+function endPointer(e){
+  pointers.delete(e.pointerId);
+  if(pointers.size < 2) pinch = null;
   $('#canvasArea').classList.remove('panning');
+  if(connectDrag){
+    const cd = connectDrag;
+    connectDrag = null;
+    if(cd.dragged){
+      const elUnder = document.elementFromPoint(e.clientX, e.clientY);
+      const targetNode = elUnder && elUnder.closest ? elUnder.closest('.node') : null;
+      if(targetNode && targetNode.dataset.id && targetNode.dataset.id !== cd.fromId){
+        ui.connectFrom = null;
+        updatePreviewLine(null);
+        tryConnect(cd.fromId, targetNode.dataset.id);
+        return;
+      }
+    } else {
+      toast('Ahora toca el nodo a conectar (o arrastra entre nodos).', 'ok', 2200);
+    }
+  }
   if(drag){
-    const wasMoved = drag.moved, id = drag.id;
+    const wasMoved = drag.moved;
     drag.el.classList.remove('dragging');
     drag = null;
     if(wasMoved){ save(); return; }
-    ui.sel = { type:'node', id };
-    renderGraph(); renderSide();
+    if(mqMobile.matches) openSheet('datos');
     return;
   }
   if(pan){
     const moved = pan.moved;
     pan = null;
-    if(!moved){ ui.sel = null; renderGraph(); renderSide(); }
+    if(!moved && ui.sel){
+      ui.sel = null;
+      renderGraph();
+      renderSide();
+    }
+  }
+}
+window.addEventListener('pointerup', endPointer);
+window.addEventListener('pointercancel', e=>{
+  pointers.delete(e.pointerId);
+  if(pointers.size < 2) pinch = null;
+  clearDragPan();
+});
+// Doble clic en un nodo o ruta enfoca su campo principal en el panel lateral para edición inmediata
+$('#canvasArea').addEventListener('dblclick', e=>{
+  const nodeEl = e.target.closest('.node');
+  const edgeEl = e.target.closest('.edge');
+  if(nodeEl){
+    ui.sel = { type:'node', id:nodeEl.dataset.id };
+    renderGraph(); renderSide();
+    const inp = $('#fSupply') || $('#fDemand') || $('#fName');
+    if(inp){ inp.focus(); inp.select(); }
+  } else if(edgeEl){
+    ui.sel = { type:'edge', id:edgeEl.dataset.id };
+    renderGraph(); renderSide();
+    const inp = $('#fCost');
+    if(inp){ inp.focus(); inp.select(); }
   }
 });
+$('#canvasArea').addEventListener('contextmenu', e=>e.preventDefault());
+['gesturestart','gesturechange','gestureend'].forEach(ev=>
+  document.addEventListener(ev, e=>e.preventDefault()));
 
 /* ---------- zoom controls ---------- */
 $('#zoomIn').addEventListener('click', ()=>{ const r=$('#canvasArea').getBoundingClientRect(); zoomAt(r.left+r.width/2, r.top+r.height/2, 1.25); });
@@ -1665,7 +2473,10 @@ $('#canvasArea').addEventListener('wheel', e=>{ e.preventDefault(); zoomAt(e.cli
 document.addEventListener('keydown', e=>{
   const typing = /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName);
   if(e.key==='Escape'){
-    if(ui.connectFrom){ ui.connectFrom = null; renderGraph(); toast('Conexión cancelada','ok',1600); }
+    if(document.body.classList.contains('menu-open')){ closeMenu(); return; }
+    if(mqMobile.matches && document.body.classList.contains('sheet-open')
+       && !document.body.classList.contains('snap-peek')){ setSnap('peek'); return; }
+    if(ui.connectFrom){ ui.connectFrom = null; updatePreviewLine(null); renderGraph(); toast('Conexión cancelada','ok',1600); }
     else if(ui.sel){ ui.sel = null; renderGraph(); renderSide(); }
     return;
   }
@@ -1678,14 +2489,149 @@ document.addEventListener('keydown', e=>{
   if(e.key==='Enter' && (e.ctrlKey || e.metaKey)){ e.preventDefault(); run(); }
 });
 
+/* ---------- bottom sheet + menú (móvil, estilo GeoGebra) ---------- */
+const mqMobile = window.matchMedia('(max-width:768px)');
+
+function setSnap(name){
+  const b = document.body;
+  b.classList.add('sheet-open');
+  b.classList.remove('snap-peek','snap-half','snap-full');
+  b.classList.add('snap-'+name);
+}
+function closeSheet(){
+  document.body.classList.remove('sheet-open','snap-peek','snap-half','snap-full');
+}
+function openSheet(mode){
+  if(mode==='resultados' && !ui.results){
+    toast('Toca Resolver para ver los resultados.','warn',2600);
+    mode = 'datos';
+  }
+  if(!mqMobile.matches){
+    if(mode==='resultados') $('#results').classList.add('open');
+    return;
+  }
+  const b = document.body;
+  b.classList.add('sheet-open');
+  b.classList.toggle('sheet-datos', mode==='datos');
+  b.classList.toggle('sheet-resultados', mode==='resultados');
+  if(!b.classList.contains('snap-half') && !b.classList.contains('snap-full')) setSnap('half');
+  $$('.sheet-tab').forEach(t=>t.classList.toggle('active', t.dataset.sheet===mode));
+  updatePeek();
+}
+function updatePeek(){
+  const el = $('#sheetPeek');
+  if(!el) return;
+  const m = buildModel(state);
+  const sup = sum(m.plants.map(p=>p.supply)), dem = sum(m.dests.map(d=>d.demand));
+  const ok = Math.abs(sup-dem) < 1e-9;
+  let txt;
+  if(!m.plants.length && !m.dests.length) txt = 'Sin datos';
+  else txt = fmtN(sup) + (ok ? ' = ' : ' ≠ ') + fmtN(dem) + (ok ? ' ✓' : ' ⚠');
+  if(ui.results && ui.results.best) txt += ' · Z=' + fmtN(ui.results.best.z);
+  el.textContent = txt;
+}
+
+/* arrastre del sheet por el handle (3 snaps: peek / medio / completo) */
+let sheetDrag = null;
+function sheetSnapHeights(){
+  const vh = window.innerHeight;
+  return [56, Math.round(vh*0.55), Math.round(vh*0.88)];
+}
+function endSheetDrag(cancelled){
+  const sd = sheetDrag;
+  sheetDrag = null;
+  const sheet = $('#sheet');
+  sheet.classList.remove('dragging');
+  sheet.style.removeProperty('--sheet-h');
+  if(!sd) return;
+  if(!sd.moved){
+    const cur = document.body.classList.contains('snap-full') ? 'full'
+              : document.body.classList.contains('snap-peek') ? 'peek' : 'half';
+    setSnap(cur==='half' ? 'peek' : 'half');
+    return;
+  }
+  const names = ['peek','half','full'];
+  const cands = sheetSnapHeights();
+  let idx = 0, best = Infinity;
+  cands.forEach((c,i)=>{ const d = Math.abs(c - sd.h); if(d < best){ best = d; idx = i; } });
+  if(!cancelled && Math.abs(sd.v) > 700) idx = Math.min(2, Math.max(0, idx + (sd.v > 0 ? -1 : 1)));
+  setSnap(names[idx]);
+}
+const grip = $('#sheetGrip');
+grip.addEventListener('pointerdown', e=>{
+  if(!mqMobile.matches || (e.button && e.button !== 0)) return;
+  const sheet = $('#sheet');
+  sheetDrag = { sy:e.clientY, h0:sheet.getBoundingClientRect().height, h:sheet.getBoundingClientRect().height,
+                ly:e.clientY, lt:performance.now(), v:0, moved:false, id:e.pointerId };
+  try{ grip.setPointerCapture(e.pointerId); }catch(_){}
+  sheet.classList.add('dragging');
+});
+grip.addEventListener('pointermove', e=>{
+  if(!sheetDrag || e.pointerId !== sheetDrag.id) return;
+  const dy = e.clientY - sheetDrag.sy;
+  if(Math.abs(dy) > 4) sheetDrag.moved = true;
+  const now = performance.now();
+  const dt = Math.max(1, now - sheetDrag.lt);
+  sheetDrag.v = sheetDrag.v*0.65 + ((e.clientY - sheetDrag.ly)/dt*1000)*0.35;
+  sheetDrag.ly = e.clientY; sheetDrag.lt = now;
+  const cands = sheetSnapHeights();
+  const h = Math.min(cands[2], Math.max(56, sheetDrag.h0 - dy));
+  sheetDrag.h = h;
+  $('#sheet').style.setProperty('--sheet-h', Math.round(h)+'px');
+});
+grip.addEventListener('pointerup', e=>{ if(sheetDrag && e.pointerId === sheetDrag.id) endSheetDrag(false); });
+grip.addEventListener('pointercancel', e=>{ if(sheetDrag && e.pointerId === sheetDrag.id) endSheetDrag(true); });
+
+/* menú ☰ */
+function openMenu(){
+  document.body.classList.add('menu-open');
+  $('#btnMenu').setAttribute('aria-expanded','true');
+}
+function closeMenu(){
+  document.body.classList.remove('menu-open');
+  $('#btnMenu').setAttribute('aria-expanded','false');
+}
+$('#btnMenu').addEventListener('click', ()=>{
+  document.body.classList.contains('menu-open') ? closeMenu() : openMenu();
+});
+$('#menuBackdrop').addEventListener('click', closeMenu);
+$('#mExample').addEventListener('click', ()=>{ closeMenu(); loadExample(false); });
+$('#mExampleHub').addEventListener('click', ()=>{ closeMenu(); loadExampleHub(false); });
+$('#mClear').addEventListener('click', ()=>{ closeMenu(); clearAll(); });
+$('#mFit').addEventListener('click', ()=>{ closeMenu(); zoomFit(); });
+$$('#menuCard .menu-item[data-sheet]').forEach(b=>
+  b.addEventListener('click', ()=>{ closeMenu(); openSheet(b.dataset.sheet); }));
+$$('.sheet-tab').forEach(t=>t.addEventListener('click', ()=>openSheet(t.dataset.sheet)));
+$('#sheetClose').addEventListener('click', closeSheet);
+
+/* al volver a escritorio se limpia el estado del sheet/menú */
+function onBpChange(ev){
+  if(ev.matches) return;
+  const was = document.body.classList.contains('sheet-open');
+  const resMode = document.body.classList.contains('sheet-resultados');
+  closeMenu(); closeSheet();
+  document.body.classList.remove('sheet-datos','sheet-resultados');
+  if(was && resMode && ui.results) $('#results').classList.add('open');
+}
+if(mqMobile.addEventListener) mqMobile.addEventListener('change', onBpChange);
+else if(mqMobile.addListener) mqMobile.addListener(onBpChange);
+
 /* ---------- botones superiores ---------- */
 $('#btnRun').addEventListener('click', run);
 $('#btnExample').addEventListener('click', ()=>loadExample(false));
+$('#btnExampleHub').addEventListener('click', ()=>loadExampleHub(false));
 $('#btnClear').addEventListener('click', clearAll);
-$('#resultsClose').addEventListener('click', ()=>$('#results').classList.remove('open'));
+$('#resultsToggleMin').addEventListener('click', ()=>{
+  $('#results').classList.toggle('minimized');
+  updateMinBtnLabel();
+});
+$('#resultsClose').addEventListener('click', ()=>{
+  if(mqMobile.matches) closeSheet();
+  else closeResultsView();
+});
 $$('.palette .tool[data-tool]').forEach(b=>b.addEventListener('click', ()=>{
   setTool(b.dataset.tool);
-  if(b.dataset.tool==='connect') toast('Toca el origen y luego el destino (Planta→Destino, Planta→Hub, Hub→Destino).','ok',3400);
+  if(b.dataset.tool==='connect') toast('Toca o arrastra entre nodos para crear una ruta (Planta→Destino, Planta→Hub, Hub→Destino).','ok',3400);
   if(b.dataset.tool==='delete') toast('Toca un nodo o ruta para borrarlo.','ok',2400);
 }));
 $('#addPlant').addEventListener('click', ()=>addNode('plant'));
@@ -1698,6 +2644,8 @@ $('#addHub').addEventListener('click', ()=>addNode('hub'));
   if(!had) { loadExample(true); }
   else { renderGraph(); renderSide(); zoomFit(); }
   applyView();
+  updatePeek();
+  if(mqMobile.matches) $('#hint').textContent = 'Arrastra los nodos con el dedo · usa «Ruta» para conectar · toca ☰ para el menú';
 })();
 // === APP END ===
 </script>
